@@ -4,12 +4,13 @@
 #
 
 import itertools
-from server_upcalls import *
-from pmix import *
+import os
+
 import hookspecs
-import fifo
 import pluggy
 
+from server_upcalls import *
+from pmix import *
 
 def main():
 
@@ -45,14 +46,19 @@ class Scheduler(PMIxTool):
         self.hook = hook
         self.allocation = []
         self.topologies = []
-        args = [{'key': PMIX_SERVER_SCHEDULER,
+        self.pid = os.getpid()
+        args = [{'key': PMIX_TOOL_NSPACE,
+                 'value': "DynaSched." + str(self.pid), 'val_type': PMIX_STRING},
+                {'key': PMIX_TOOL_RANK,
+                 'value': 0, 'val_type': PMIX_PROC_RANK},
+                {'key': PMIX_SERVER_SCHEDULER,
                  'value': 'T', 'val_type': PMIX_BOOL},
                 {'key': PMIX_CONNECT_TO_SYSTEM,
                  'value': 'T', 'val_type': PMIX_BOOL},
                 {'key': PMIX_TOOL_CONNECT_OPTIONAL,
                  'value': 'T', 'val_type': PMIX_BOOL}]
-        rc, myproc = self.init(args)
-        print("Init", self.error_string(rc), myproc)
+        rc, self.myproc = self.init(args)
+        print("Init", self.error_string(rc), self.myproc)
         map = {'clientconnected': clientconnected,
                'clientfinalized': clientfinalized,
                'fencenb': clientfence,
