@@ -5,7 +5,7 @@ Open source contributions
 -------------------------
 
 All code contributions are submitted as pull requests on the `DynaSched
-GitHub repository <https://github.com/openpmix/openpmix/>`_.
+GitHub repository <https://github.com/dynasched/dynasched/>`_.
 
 .. important:: All commits must include a ``Signed-off-by:`` line,
                indicating the submitter's agreement to the :ref:`DynaSched
