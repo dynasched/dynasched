@@ -1,5 +1,5 @@
 DynaSched |dsched_ver|
-====================
+======================
 
 The charter of the PMIx community is to:
 
@@ -47,7 +47,6 @@ Table of contents
    quickstart
    history
    release-notes
-   exceptions
    getting-help
    install
    versions
