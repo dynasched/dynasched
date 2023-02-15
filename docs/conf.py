@@ -23,15 +23,23 @@ project = 'DynaSched'
 copyright = f'2023-{year}, The DynaSched Community'
 author = 'The DynaSched Community'
 
-# define the DynaSched version
-dsched_data = {}
-dsched_data['major'] = "1"
-dsched_data['minor'] = "0"
-dsched_data['release'] = 0
-dsched_data['greek'] = "a1"
+# define the DynaSched version, including alpha/beta/rc tags
+# Read the DynaSched version from the VERSION file
+with open("../VERSION") as fp:
+    dsched_lines = fp.readlines()
 
-# Identify the minimum PMIx version required
-dsched_data['pmix_min_version'] = "5.0.0"
+dsched_data = dict()
+for dsched_line in dsched_lines:
+    if '#' in dsched_line:
+        parts = dsched_line.split("#")
+        dsched_line = parts[0]
+    dsched_line = dsched_line.strip()
+
+    if '=' not in dsched_line:
+        continue
+
+    dsched_key, dsched_val = dsched_line.split("=")
+    dsched_data[dsched_key.strip()] = dsched_val.strip()
 
 # Construct a few frequently used strings
 dsched_series = f"v{dsched_data['major']}.{dsched_data['minor']}.x"
