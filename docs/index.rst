@@ -41,7 +41,7 @@ Table of contents
 =================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :numbered:
 
    quickstart

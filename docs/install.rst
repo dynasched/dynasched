@@ -1,12 +1,13 @@
 Installation
 ============
 
-This file is a *very* short overview of building and installing the
-PMIx library.  Much more information is available in the `How-To
-section on the PMIx web site <https://pmix.org/support/how-to/>`_.
+This file is a *very* short overview on building and installing the
+DynaSched scheduler, including both the required PMIx library and
+the optional PMIx Reference RunTime Environment (PRRTE) system
+software.
 
-Developer Builds
-----------------
+PMIx Library
+------------
 
 If you have checked out a DEVELOPER'S COPY of PMIx (i.e., you checked
 out from Git), you should read the :doc:`Developer's Guide
@@ -28,7 +29,7 @@ reading the :doc:`Developer's Guide </developers/index>`.
           overhead.
 
 
-User Builds
+PRRTE
 -----------
 
 Building PMIx is typically a combination of running ``configure``

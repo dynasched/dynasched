@@ -3,6 +3,12 @@
 Quick start
 ===========
 
+The following assumes you have already installed a copy of the
+PMIx library, including the Python bindings for that library.
+If that isn't the case, you probably want to start in the
+:doc:`Installation </install>` section.
+
+
 In many cases, DynaSched can be built and installed by simply
 indicating the installation directory on the command line:
 

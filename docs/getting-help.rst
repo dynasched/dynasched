@@ -1,4 +1,4 @@
-Getting help
+Getting Help
 ============
 
 Found a bug?  Got a question?  Want to make a suggestion?  Want to
