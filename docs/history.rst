@@ -1,20 +1,29 @@
 History
 ========
 
-The Process Management Interface (PMI) has been used for quite some
-time as a means of exchanging wireup information needed for
-interprocess communication. Two versions (PMI-1 and PMI-2) have been
-released as part of the MPICH effort. While PMI-2 demonstrates better
-scaling properties than its PMI-1 predecessor, attaining rapid launch
-and wireup of the roughly 1M processes executing across 100k nodes
-expected for exascale operations remains challenging.
+The Lagrangian approach to constrained problems was initially developed as a method for dealing with systems involving nonholonomic constraints – i.e., constraints that cannot be expressed as a function of the form
+*f(r1, r2, r3, ..., t) = 0* [Go50]. Examples of nonholonomic
+constraints include the walls of a container that constrain the motions of a gas, or a particle constrained to move on the surface of a sphere. In these situations, the equations governing the behavior of the system can be solved by introducing the constraints into those equations through the use of Lagrangian multipliers – undetermined parameters that are often functions of time.
 
-PMI Exascale (PMIx) represents an attempt to resolve these questions
-by providing an extended version of the PMI standard specifically
-designed to support clusters up to and including exascale sizes. The
-overall objective of the project is not to branch the existing
-pseudo-standard definitions - in fact, PMIx fully supports both of the
-existing PMI-1 and PMI-2 APIs - but rather to (a) augment and extend
-those APIs to eliminate some current restrictions that impact
-scalability, and (b) provide a reference implementation of the
-PMI-server that demonstrates the desired level of scalability.
+Since that time, the Lagrangian technique has been applied to an ever-increasing range of problems that involve complex system equations and nonholonomic constraints [LeM67] [BrH75]. Extending the technique to the resource management problem where heuristics must be bound by “hard” constraints on precedence, energy, and time – all nonholonomic in nature – was a natural fit.
+The most common use of the Lagrangian technique for scheduling has been in the manufacturing area. In these cases, the problem is to optimally schedule the manufacture of parts in an industrial operation where the parts require multiple machining operations and have desired completion times. There is a penalty for finishing too early or too late. The machining operations are con- strained by the available resources in terms of the types of machines used, the finite number of machines of each type, and the scheduling precedence requirements.
+
+Luh and Hoitomt [LuH93] successfully adopted the Lagrangian approach by breaking the overall manufacturing problem into a series of sub-problems. This approach combines Lagrangian relaxation techniques with post- solution scheduling heuristics. The Lagrangian multipliers attempt to measure the marginal costs associated with machine capacity and scheduling precedence constraints. As dynamic changes in the manufacturing environment occur, the pre-existing optimal values of the Lagrangian multipliers can be used as a starting point for the computations for the changed environment. However, the resulting Lagrangian-based solutions typically represent infeasible schedules in that there are temporal machine capacity and scheduling precedence constraint violations. The final solution requires the use of list scheduling techniques whereby a greedy scheduling heuristic is used to sequentially schedule tasks by order of decreasing marginal costs. The problem is effectively treated as a scheduling solution to a static environment and the Lagrangian multipliers cannot be modified, and generate a guaranteed feasible solution, in a continuously changing environment.
+
+Subsequently, Luh et al. [LuZ00] extended the Lagrangian technique through the introduction of a neural net- work that adjusted the Lagrangian multipliers as the scheduling progressed to achieve closer-to-optimal results. The key result in this work was a proof of the convergence of the Lagrangian relaxation neural network (LRNN) approach for constrained optimization problems. There are no requirements on the differentiability of the describing functions or the continuity of the decision variables – provided that the evolution of the decision variables leads the Lagrangian to a global minimization.
+This approach works well for statically mapping the part manufacturing sequence in an industrial environment. However, it has two significant limitations:
+
+(a) the LRNN formulation generally converges to a solution that may not be entirely feasible because of the difficulty in characterizing some constraints. As a result, there is a final step that readjusts the map- ping to ensure the final solution is feasible; and
+
+(b) as implemented, the technique cannot respond to dynamic changes in the production line, such as the loss of a machine, without rescheduling the entire production sequence.
+
+Removing these limitations requires the introduction of a second technique, also taken from the controls com- munity. The receding horizon concept for optimal control first appeared in the 1960s as a method for accurately controlling nonlinear processes (e.g., [LeM67]). As described at that time, the basic concept involved the measurement of the current process state, followed by rapid computation of the predicted evolution of that state for a finite period of time in the future (known as the horizon). The results of the computation were then used to control the process during the horizon period until a new measurement of the process state is made. This pro- cedure is repeated throughout the process, thus providing a piecewise solution to the control problem.
+
+Little was done with the concept initially, primarily due to the high computational requirements involved in the prediction portion of the algorithm. However, the con- cept resurfaced in the late 1970s in the form of Model Predictive Control (MPC) – also known as Receding Horizon Control (RHC) – as microprocessors began to enter the market. Variants of the technique rapidly spread, particularly in the petrochemical industry, where economic considerations push for the absolute maximum in production.
+Since that time, MPC has emerged as a standard technique for control of multivariable, constrained systems [WhS92]. However, although there are many similarities between the problems of optimal control of dynamic systems and the scheduling of production tasks in a manufacturing environment where there are numerous precedence and resource availability constraints, the application of MPC techniques to the problem of resource management has only recently become the subject of research.
+
+In particular, Pereira and Sousa [PeS97] developed a hierarchical computational framework for the integrated planning and scheduling of manufacturing operations. The manufacturing operations modeled are discrete events that have been treated as a continuous flow model at multiple levels of a hierarchical structure. The optimization occurs with respect to a distinct number of operations that define the current point of the receding horizon. Combinations of levels of hierarchy, the length of the time horizon, and degree of task aggregation are used to analyze the trade-off between complexity and model accuracy. In the scheduling determination, the operations of the machines are first ordered by criticality. Then a feasible schedule is constructed for the most critical machines and the allocation and scheduling of the next lower level of machines is generated. Mathematically, the optimization step uses a pseudo-Hamiltonian formulation of the continuous flow problem.
+
+This approach appears to work well for well-described manufacturing operations where the parameter perturbations are small. The approach does not demonstrate the ability to be implemented in a real-time computational architecture with large dynamic changes in the rate of task arrivals or machine and communication path disruptions.
+
+This paper explores an alternative approach to the existing literature by explicitly pursuing a computational strategy that lends itself to real-time allocation and scheduling decisions based upon a continuously updated optimization problem. The fundamental problem addressed is one of optimal allocation of resources in a constrained, dynamic, sometimes unreliable, computing grid. The pro- posed solution combines the receding horizon concept with Lagrangian multipliers to find the optimal solution with respect to a global cost function with explicit constraint formulations. This approach is particularly attractive due to its potential for being mapped directly onto hardware such as digital signal processors (DSPs) or field-programmable gate arrays (FPGAs), thus providing the algorithmic speed required for deployment in many real-time field applications
