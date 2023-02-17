@@ -114,11 +114,12 @@ extensions = ['recommonmark',
               "sphinx_rtd_theme",
               'sphinx.ext.autodoc',
               'sphinx.ext.napoleon',
-              'sphinx.ext.viewcode',
-              'sphinxcontrib.bibtex']
+              'sphinx.ext.viewcode']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+# bibtex_bibfiles = ["references.bib"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
