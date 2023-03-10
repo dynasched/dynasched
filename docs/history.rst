@@ -1,6 +1,8 @@
 History
 ========
 
+Scheduling execution of the applications in such systems is often characterized by constraints on the available energy, communications bandwidth, and processing power associated with each node.
+
 The Lagrangian approach to constrained problems was initially developed as a method for dealing with systems involving nonholonomic constraints – i.e., constraints that cannot be expressed as a function of the form
 *f(r1, r2, r3, ..., t) = 0* [Go50]. Examples of nonholonomic
 constraints include the walls of a container that constrain the motions of a gas, or a particle constrained to move on the surface of a sphere. In these situations, the equations governing the behavior of the system can be solved by introducing the constraints into those equations through the use of Lagrangian multipliers – undetermined parameters that are often functions of time.

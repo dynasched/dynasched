@@ -19,6 +19,15 @@ class GracefulKiller:
   def exit_gracefully(self,signum, frame):
     self.kill_now = True
 
+def toolconnected(args:dict is not None):
+    if 'nspace' in args:
+        ns = args['nspace']
+    else:
+        ns = "dschedtool"
+
+    results = {'nspace': ns, 'rank': 0}
+    return PMIX_OPERATION_SUCCEEDED, results
+
 def clientquery(args:dict is not None):
     print("SERVER: QUERY")
     # return a python info list of dictionaries
@@ -42,3 +51,13 @@ def clientquery(args:dict is not None):
 def client_register_events(args:dict is not None):
     print("CLIENT REGISTER EVENTS ", args['codes'])
     return PMIX_OPERATION_SUCCEEDED
+
+def allocation(args:dict is not None):
+    print("DSCHED ALLOCATE")
+    results = []
+    return PMIX_ERR_NOT_SUPPORTED, results
+
+def session_ctrl(args:dict is not None):
+    print("DSCHED SESSION CTRL")
+    return PMIX_ERR_NOT_SUPPORTED
+
