@@ -1,0 +1,21 @@
+/*
+ * Copyright (c) 2026      Nanook Consulting  All rights reserved.
+ * $COPYRIGHT$
+ *
+ * Additional copyrights may follow
+ *
+ * $HEADER$
+ */
+
+
+#ifndef DSCHED_VERSION_H
+#define DSCHED_VERSION_H
+
+/* define DYNASCHED version */
+#define DSCHED_VERSION_MAJOR @dschedmajor@
+#define DSCHED_VERSION_MINOR @dschedminor@
+#define DSCHED_VERSION_RELEASE @dschedrelease@
+
+#define DSCHED_NUMERIC_VERSION @dschednumeric@
+
+#endif
