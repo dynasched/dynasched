@@ -25,6 +25,9 @@ Table of contents
    :numbered:
 
    quickstart.rst
+   developers/index.rst
+   contributing.rst
+   license.rst
    getting-help.rst
    installing-dsched/index.rst
    mca.rst

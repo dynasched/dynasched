@@ -83,6 +83,10 @@ docs/_static
 docs/_static/css/custom.css
 docs/_templates
 
+# tools
+src/tools/dsched/dsched
+src/tools/dsched_info/dsched-info
+
 # Common Python virtual environment directory names
 venv
 py??

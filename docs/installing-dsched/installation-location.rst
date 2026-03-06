@@ -1,5 +1,5 @@
 
-.. _building-pmix-installation-location-label:
+.. _building-dsched-installation-location-label:
 
 Installation location
 =====================
