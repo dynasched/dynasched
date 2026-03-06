@@ -45,7 +45,7 @@ def find_files(root, verbose=False):
     # Check for existence of root directory - otherwise, we just
     # fall through with no error output
     if not os.path.isdir(root):
-        sys.stderr.write("Root directory " + root + " does not exist\nCannot continue\n")
+        print("Root directory " + root + " does not exist\nCannot continue")
         exit(1)
 
     # Search for help-*.txt files across the source tree, skipping
@@ -103,37 +103,23 @@ def parse_help_files(file_paths, data, citations, verbose=False):
         current_section = None
         with open(file_path) as file:
             for line in file:
-                stripped = line.strip()
+                stripped = line.rstrip()
+                if not stripped and current_section is None:
+                    continue
                 if stripped.startswith("#include"):
-                    # if we aren't in a section, then this is an error
-                    if current_section is None:
-                        sys.stderr.write("ERROR: INCLUDE is specified in ", file_path, " outside of a section")
-                        continue
-                    # include the line in the section
-                    sections[current_section].append(stripped)
                     # this line includes a file/topic from another file
                     # find the '#' at the end of the "include" keyword
                     start = stripped.find('#', 2)
                     if start != -1:
                         # find the '#'' at the end of the filename
                         end = stripped.find('#', start+1)
-                        end2 = stripped.find('#', end+1)
-                        if end2 == -1:
-                            topic = stripped[end+1:]
+                        if end != -1:
                             fil = stripped[start+1:end]
+                            topic = stripped[end+1:-1]
                             citations.append((fil, topic))
-                        else:
-                            topic = stripped[end2+1:]
-                            fil = stripped[end+1:end2]
-                            citations.append((fil, topic))
-                    # if a section contains an include, we treat that
-                    # section as having been cited
-                    citations.append((os.path.basename(file_path), current_section))
                     continue
                 if stripped.startswith('#'):
                     current_section = None
-                    continue
-                if current_section is None and not stripped:
                     continue
                 if stripped.startswith('['):
                     # find the end of the section name
@@ -143,10 +129,11 @@ def parse_help_files(file_paths, data, citations, verbose=False):
                     current_section = stripped[1:end]
                     sections[current_section] = list()
                 elif current_section is not None:
-                    sections[current_section].append(stripped)
+                    line = line.rstrip()
+                    sections[current_section].append(line)
 
         if file_path in data:
-            sys.stderr.write("ERROR: path " + file_path + " already exists in data dictionary\n")
+            sys.stderr.write("ERROR: path ", file_path, " already exists in data dictionary")
         else:
             data[file_path] = sections
         if verbose:
@@ -163,9 +150,8 @@ def parse_src_files(source_files, citations, verbose=False):
         with open(src) as file:
             for line in file:
                 line = line.strip()
-
                 # skip the obvious comment lines
-                if line.startswith("//") or line.startswith("/*") or line.startswith('*') or line.startswith("PMIX_EXPORT"):
+                if line.startswith("//") or line.startswith("/*") or line.startswith("* ") or line.startswith("DSCHED_EXPORT"):
                     continue
 
                 if cont_topic:
@@ -184,8 +170,6 @@ def parse_src_files(source_files, citations, verbose=False):
                             continue
                 elif cont_filename:
                     # the filename should be on this line
-                    if verbose:
-                        print("CONT FILENAME LINE: ", line)
                     start = line.find('"')
                     if start != -1:
                         end = line.find('"', start+1, -1)
@@ -198,8 +182,6 @@ def parse_src_files(source_files, citations, verbose=False):
                                 end = line.find('"', start+1, -1)
                                 if end != -1:
                                     topic = line[start+1:end]
-                                    if verbose:
-                                        print("Found all: ", filename, topic)
                                     citations.append((filename,topic))
                             else:
                                 # topic must be on next line
@@ -210,18 +192,14 @@ def parse_src_files(source_files, citations, verbose=False):
                             continue
                         else:
                             cont_filename = False
-                            sys.stderr.write("ERROR: Missing end of filename\n")
+                            sys.stderr.write("ERROR: Missing end of filename")
                             continue
 
-                if ("pmix_show_help(" in line and not "pmix_status_t" in line) or \
-                   ("pmix_show_help_string(" in line and not "char *" in line) or \
-                   ("send_error_show_help(" in line and not "void" in line):
+                if "pmix_show_help(" in line or "pmix_show_help_string(" in line or "send_error_show_help" in line:
                     cont_topic = False
                     cont_filename = False
                     # line contains call to show-help - try to extract
                     # filename/topic
-                    if verbose:
-                        print("LINE: ", line)
                     start = line.find('"')
                     if start != -1:
                         end = line.find('"', start+1, -1)
@@ -234,8 +212,6 @@ def parse_src_files(source_files, citations, verbose=False):
                                 end = line.find('"', start+1, -1)
                                 if end != -1:
                                     topic = line[start+1:end]
-                                    if verbose:
-                                        print("Found all: ", filename, topic)
                                     citations.append((filename,topic))
                             else:
                                 # topic must be on next line
@@ -248,174 +224,96 @@ def parse_src_files(source_files, citations, verbose=False):
 
     return
 
-def parse_tool_files(help_files, source_files, cli_options, citations, verbose=False):
+def parse_tool_files(help_files, citations, verbose=False):
     # cycle through the tool help files
     for hlp in help_files:
         topics = []
         options = []
-        cli = []
-        local_cli = []
-        insection = False
+        inUsage = False
         # scan the help file to find cmd line options that
         # are referenced in the help file itself
         with open(hlp) as file:
+            continuation = False
             for line in file:
-                line = line.strip()
+                line = line.rstrip()
                 if not line:
                     continue
                 if line.startswith('#'):
-                    insection = False
-                    continue
+                    inUsage = False
                 if line.startswith('[') and line.endswith(']'):
                     # topic - save it
                     start = line.find('[') + 1
                     end = line.find(']')
                     topic = line[start:end]
                     topics.append(topic)
-                    if topic != "usage":
-                        insection = True
+                    if "usage" == topic:
+                        inUsage = True
                     continue
-                if not insection:
-                    # scan the line for the "--" that indicates a cmd line option
-                    opt = line.find("--")
-                    if -1 == opt:
-                        continue
-                    # opt now points to the "--" in front of the option
-                    opt += 2
-                    optend = line.find(' ', opt+1)
-                    option = line[opt:optend]
-                    # track the option
-                    options.append(option)
-        # get the name of the tool this help file belongs to
-        d = os.path.basename(hlp)
-        # find the start of the tool name
-        start = d.find('-') + 1
-        end = d.find('.', start)
-        tool = d[start:end]
-        # search the source files for the corresponding tool
-        # note that we need to look at .c AND .h files for definitions
-        found = False
-        for src in source_files:
-            f = os.path.basename(src)
-            end = f.find('.')
-            tsrc = f[0:end]
-            if tool == tsrc:
-                found = True
-                # search this source for cmd line options
-                with open(src) as srcfile:
-                    for lsrc in srcfile:
-                        lsrc = lsrc.strip()
-                        if lsrc.startswith("#define PMIX_CLI"):
-                            # defining a local option
-                            # find the first space at end of "define"
-                            s1 = lsrc.find(' ')
-                            # first word after "#define " is the name of the option
-                            start = 8
-                            end = lsrc.find(' ', start+1)
-                            if -1 == end:
-                                continue
-                            name = lsrc[start:end]
-                            # find the first quote mark
-                            start = lsrc.find('"', end)
-                            if start != -1:
-                                # find the ending quote mark
-                                end = lsrc.find('"', start+1)
-                                # everything in-between is the actual option
-                                opt = lsrc[start+1:end]
-                                # track it
-                                local_cli.append((name, opt))
-
-                        elif lsrc.startswith("PMIX_OPTION_") and lsrc != "PMIX_OPTION_END":
-                            # the option name starts with PMIX_CLI
-                            start = lsrc.find("PMIX_CLI_")
-                            end = lsrc.find(",", start+1)
-                            # find the option in the global list so we can
-                            # compare it to the help file options
-                            cli.append(lsrc[start:end])
-
-        if not found:
-            sys.stderr.write("WARNING: No corresponding source code found for help file " + hlp + "\n")
-            exit(1)
-
-        # convert the CLI to strings so we can check the options and topics
-        clistrings = []
-        for c in cli:
-            found = False
-            # check local definitions first
-            for l in local_cli:
-                if c == l[0]:
-                    found = True
-                    clistrings.append(l[1])
-                    break
-            if not found:
-                # check the global definitions
-                for copt in cli_options:
-                    if c == copt[0]:
-                        found = True
-                        clistrings.append(copt[1])
-                        break
-            if not found:
-                # unrecognized option
-                sys.stderr.write("WARNING: Unrecognized command line option " + c + " in source code " + os.path.basename(src) + "\n")
-                exit(1)
-
-        # check the cli and options to ensure they match
-        for option in options:
-            found = False
-            for c in clistrings:
-                # there must be a CLI entry for every option
-                if c == option:
-                    found = True
-                    break
-            if not found:
-                sys.stderr.write("WARNING: Option " + option + " has no corresponding CLI defined for " + tool + "\n")
-                exit(1)
-
-        # reverse must also be true
-        for c in clistrings:
-            # ignore "help", "version", and "verbose" as those are handled
-            # by the PMIx cmd line processor
-            if "help" == c or "version" == c or "verbose" == c:
-                continue
-            found = False
-            for option in options:
-                # must be an option in the help file for each CLI entry
-                if c == option:
-                    found = True
-                    break
-            if not found:
-                sys.stderr.write("WARNING: CLI definition " + c + " has no corresponding help entry in " + os.path.basename(hlp) + "\n")
-                exit(1)
-
-        # also require that there be a topic for each option so that
-        # "--help option" works. Note that "help", "version", and "verbose"
-        # are special cases handled by the cmd line processor
+                if not inUsage:
+                    continue
+                if not line.startswith('|'):
+                    continue
+                # look for end of option
+                entryend = line.find('|', 2)
+                # if this is a continuation line, then just take the remaining option words
+                if continuation:
+                    optend = line.find(' ', 2, entryend)
+                    # if the last character is a quote, then back up
+                    if line[optend-1] == '"':
+                        optend = optend - 1
+                    opt = optstart + line[2:optend]
+                    options.append(opt)
+                    continuation = False
+                    continue
+                # scan the line for the dash(es) that indicates a cmd line option
+                opt = line.find('-', 2, entryend)
+                if -1 == opt:
+                    continue
+                # check for single-dash option
+                if '-' != line[opt+1]:
+                    options.append(line[opt+1])
+                    # adjust the entryend value as there will be a double-dash version
+                    entryend = line.find('|', opt+6)
+                # there could be a double-dash version as well
+                opt = line.find("--", 2, entryend)
+                if -1 == opt:
+                    continue
+                # move past the double-dashes
+                opt += 2
+                optend = line.find(' ', opt+1, entryend)
+                if line[optend-1] == '"':
+                    optend = optend - 1
+                # if the last character is a "-", then the option continues on next line
+                if line[optend-1] == '-':
+                    optstart = line[opt:optend]
+                    continuation = True
+                    continue
+                option = line[opt:optend]
+                # skip the help, verbose, and version standard options
+                if option == "help" or option == "version" or option == "verbose":
+                    continue
+                # track the option
+                options.append(option)
         # scan the options
         for option in options:
-            if option == "help" or option == "version" or option == "verbose":
-                continue
             # scan the topics for a match
-            found = False
             for topic in topics:
                 if option == topic:
                     if verbose:
                         print("CITED ", os.path.basename(hlp), option)
-                    found = True
                     citations.append((os.path.basename(hlp), option))
                     break
-            if not found:
-                sys.stderr.write("WARNING: Option " + option + " has no topic entry in " + os.path.basename(hlp) + "\n")
+
 
 
 def purge(parsed_data, citations):
+    special_topics = ["help",
+                      "version",
+                      "usage"]
     result_data = {}
     errorFound = False
     for filename in parsed_data:
-        # tools were processed separately
         sections = parsed_data[filename]
-        if "tools" in filename:
-            result_data[filename] = sections
-            continue
         result_sections = {}
         for section in sections:
             content_list = sections[section]
@@ -430,15 +328,17 @@ def purge(parsed_data, citations):
                     if sec == section:
                         if content == cnt:
                             # these are the same
-                            sys.stderr.write("DUPLICATE FOUND - SECTION: " + section + "\nFILES: " + filename + "\n       " + file2 + "\n")
+                            sys.stderr.write("DUPLICATE FOUND:\n    SECTION: " + section + "\n    FILES: " + \
+                                             filename + "\n           " + file2 + "\n")
                             errorFound = True
                         else:
                             # same topic, different content
-                            sys.stderr.write("DUPLICATE SECTION WITH DIFFERENT CONTENT: " + section, "\nFILES: " + filename + "\n       " + file2 + "\n")
+                            sys.stderr.write("DUPLICATE SECTION WITH DIFFERENT CONTENT:\n    SECTION: " + \
+                                             section + "\n    FILES: " + filename + "\n           " + file2 + "\n")
                             errorFound = True
             # search code files for usage
             # protect special values
-            if section == "help" or section == "version" or section == "usage":
+            if section in special_topics:
                 result_sections[section] = content_list
                 continue
             for entry in citations:
@@ -460,8 +360,10 @@ def purge(parsed_data, citations):
             # don't retain the file if no citations for it are left
             result_data[filename] = result_sections
         else:
-            sys.stderr.write("File " + filename + "has no used topics - omitting\n")
+            sys.stderr.write("File " + filename + " has no used topics - omitting\n")
             errorFound = True
+        if errorFound:
+            exit(1)
 
     if errorFound:
         exit(1)
@@ -470,9 +372,13 @@ def purge(parsed_data, citations):
 def generate_c_code(parsed_data):
     # Generate C code with an array of filenames and their
     # corresponding INI sections.
-    c_code = "// THIS FILE IS GENERATED AUTOMATICALLY! EDITS WILL BE LOST!\n// This file generated by " + os.path.basename(sys.argv[0]) + "\n\n"
+    c_code = "// THIS FILE IS GENERATED AUTOMATICALLY! EDITS WILL BE LOST!\n" + \
+             "// This file generated by " + os.path.basename(sys.argv[0]) + "\n\n"
 
-    c_code += "#include \"src/include/pmix_config.h\"\n#include <stdio.h>\n#include <string.h>\n\n#include \"src/include/pmix_globals.h\"\n\n"
+    c_code += "#include \"src/include/dsched_config.h\"\n" + \
+              "#include <stdio.h>\n" + \
+              "#include <string.h>\n\n" + \
+              "#include \"src/include/pmix_globals.h\"\n\n"
 
     ini_arrays = []
     file_entries = []
@@ -497,7 +403,7 @@ def generate_c_code(parsed_data):
     file_entries.append("    { NULL, NULL }")
 
     c_code += "\n".join(ini_arrays) + "\n"
-    c_code += "pmix_show_help_file_t pmix_show_help_data[] = {\n" + ",\n".join(file_entries) + "\n};\n"
+    c_code += "pmix_show_help_file_t dsched_show_help_data[] = {\n" + ",\n".join(file_entries) + "\n};\n"
 
     return c_code
 
@@ -529,10 +435,10 @@ def main():
     outdata = {}
     rootdir = os.path.join(args.root, "src")
 
-    # the options are in root/util/pmix_cmd_line.h
-    path = os.path.join(rootdir, "util", "pmix_cmd_line.h")
+    # the options are in root/util/dsched_cmd_line.h
+    path = os.path.join(rootdir, "util", "dsched_cmd_line.h")
     if not os.path.exists(path):
-        sys.stderr.write("File " + path + " does not exist\nCannot continue\n")
+        sys.stderr.write("File " + path + " does not exist\nCannot continue")
         exit(1)
     # obtain a list of (option name, string) tuples
     cli_options = parse_cmd_line_options(path, args.verbose)
@@ -541,7 +447,8 @@ def main():
     parse_help_files(help_files, parsed_data, citations, args.verbose)
     parse_help_files(tool_help_files, parsed_data, citations, args.verbose)
     parse_src_files(source_files, citations, args.verbose)
-    parse_tool_files(tool_help_files, tool_source_files, cli_options, citations, args.verbose)
+    parse_src_files(tool_source_files, citations, args.verbose)
+    parse_tool_files(tool_help_files, citations, args.verbose)
     if args.purge:
         outdata = purge(parsed_data, citations)
     else:

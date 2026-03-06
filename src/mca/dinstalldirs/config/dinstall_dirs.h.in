@@ -78,7 +78,7 @@
 
 /* $(datadir)/package-name/.  You probably want to use this instead of
    DSCHED_DATADIR */
-#define DSCHED_PKGDATADIR "@pmixdatadir@"
+#define DSCHED_PKGDATADIR "@dscheddatadir@"
 
 /* The directory for installing read-only data files that pertain to a
    single machine–that is to say, files for configuring a host. Mailer
@@ -111,14 +111,14 @@
 #define DSCHED_LIBDIR "@libdir@"
 
 /* $(libdir)/package-name/.  This is where components should go */
-#define DSCHED_PKGLIBDIR "@pmixlibdir@"
+#define DSCHED_PKGLIBDIR "@dschedlibdir@"
 
 /* The directory for installing header files to be included by user
    programs with the C ‘#include’ preprocessor directive. */
 #define DSCHED_INCLUDEDIR "@includedir@"
 
 /* $(includedir)/package-name/.  The devel headers go in here */
-#define DSCHED_PKGINCLUDEDIR "@pmixincludedir@"
+#define DSCHED_PKGINCLUDEDIR "@dschedincludedir@"
 
 /* The directory for installing the Info files for this package. */
 #define DSCHED_INFODIR "@infodir@"

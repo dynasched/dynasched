@@ -46,6 +46,3 @@ nobase_dsched_HEADERS = $(headers)
 
 dist-hook:
 	env LS_COLORS= sh "$(top_srcdir)/config/distscript.sh" "$(top_srcdir)" "$(distdir)" "$(DSCHED_VERSION)" "$(DSCHED_REPO_REV)"
-
-pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = maint/dsched.pc

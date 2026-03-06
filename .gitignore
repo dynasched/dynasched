@@ -75,6 +75,9 @@ src/mca/dinstalldirs/config/dinstall_dirs.h
 src/mca/ddl/base/static-components.h
 src/mca/dinstalldirs/base/static-components.h
 
+# generated file
+src/util/dsched_show_help_content.c
+
 # coverity
 cov-int
 

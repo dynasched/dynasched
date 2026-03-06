@@ -246,7 +246,7 @@ int dsched_init_util(void)
     if (PMIX_SUCCESS != ret) {
         return ret;
     }
-    pmix_show_help_add_data("dsched", dsched_globals.show_help_data);
+    pmix_show_help_add_data("dsched", dsched_show_help_data);
 
     /* Setup the parameter system */
     if (DSCHED_SUCCESS != (ret = pmix_mca_base_var_init())) {

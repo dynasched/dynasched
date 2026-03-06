@@ -53,6 +53,8 @@
 
 BEGIN_C_DECLS
 
+DSCHED_EXPORT extern pmix_show_help_file_t dsched_show_help_data[];
+
 typedef int16_t dsched_node_state_t;
 
 #define DSCHED_GLOBAL_ARRAY_BLOCK_SIZE 64
@@ -146,7 +148,6 @@ typedef struct {
     bool initialized;
     const char *version_string;
     char *basename;
-    pmix_show_help_file_t *show_help_data;
     char hostname[DSCHED_MAXHOSTNAMELEN];
     pmix_pointer_array_t nodes;
     pmix_pointer_array_t sessions;

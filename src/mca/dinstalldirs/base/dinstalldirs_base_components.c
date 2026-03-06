@@ -15,9 +15,10 @@
  *
  */
 
-#include "src/include/pmix_config.h"
+#include "src/include/dsched_config.h"
 
 #include "src/mca/mca.h"
+#include "src/include/dsched_constants.h"
 #include "src/mca/dinstalldirs/base/base.h"
 #include "src/mca/dinstalldirs/base/static-components.h"
 #include "src/mca/dinstalldirs/dinstalldirs.h"
@@ -51,22 +52,18 @@ pmix_pinstall_dirs_t dsched_dinstall_dirs = {
 
 static int dsched_dinstalldirs_base_open(pmix_mca_base_open_flag_t flags)
 {
-    return pmix_mca_base_framework_components_open(&dsched_dinstalldirs_base_framework, flags);
-}
-
-int dsched_dinstall_dirs_base_init(pmix_info_t info[], size_t ninfo)
-{
     pmix_mca_base_component_list_item_t *component_item;
+    int ret;
+
+    ret = pmix_mca_base_framework_components_open(&dsched_dinstalldirs_base_framework, flags);
+    if (PMIX_SUCCESS != ret) {
+        return DSCHED_ERROR;
+    }
 
     PMIX_LIST_FOREACH (component_item, &dsched_dinstalldirs_base_framework.framework_components,
                        pmix_mca_base_component_list_item_t) {
         const dsched_dinstalldirs_base_component_t *component
             = (const dsched_dinstalldirs_base_component_t *) component_item->cli_component;
-
-        if (NULL != component->init) {
-            component->init(info, ninfo);
-        }
-
         /* copy over the data, if something isn't already there */
         CONDITIONAL_COPY(dsched_dinstall_dirs, component->install_dirs_data, prefix);
         CONDITIONAL_COPY(dsched_dinstall_dirs, component->install_dirs_data, exec_prefix);

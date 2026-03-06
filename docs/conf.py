@@ -43,7 +43,6 @@ for dsched_line in dsched_lines:
 
     if '=' not in dsched_line:
         continue
-
     dsched_key, dsched_val = dsched_line.split("=")
     dsched_data[dsched_key.strip()] = dsched_val.strip()
 
@@ -57,6 +56,7 @@ autoconf_min_version = f"{dsched_data['autoconf_min_version']}"
 libtool_min_version = f"{dsched_data['libtool_min_version']}"
 flex_min_version = f"{dsched_data['flex_min_version']}"
 python_min_version = f"{dsched_data['python_min_version']}"
+pmix_min_version = f"{dsched_data['pmix_min_version']}"
 
 # "release" is a sphinx config variable: assign it to the computed
 # DynaSched version number.  The dsched_ver string begins with a "v"; the
@@ -205,6 +205,7 @@ rst_prolog = f"""
 .. |libtool_min_version| replace:: {libtool_min_version}
 .. |flex_min_version| replace:: {flex_min_version}
 .. |python_min_version| replace:: {python_min_version}
+.. |pmix_min_version| replace:: {pmix_min_version}
 
 """
 

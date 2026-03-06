@@ -16,9 +16,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/include/dsched_constants.h"
 #include "src/mca/dinstalldirs/dinstalldirs.h"
 
-static void dinstalldirs_env_init(pmix_info_t info[], size_t ninfo);
+static int dinstalldirs_env_open(void);
 
 dsched_dinstalldirs_base_component_t dsched_mca_dinstalldirs_env_component = {
     /* First, the mca_component_t struct containing meta information
@@ -31,6 +32,9 @@ dsched_dinstalldirs_base_component_t dsched_mca_dinstalldirs_env_component = {
         DSCHED_MAJOR_VERSION,
         DSCHED_MINOR_VERSION,
         DSCHED_RELEASE_VERSION,
+
+        /* Component open and close functions */
+        .pmix_mca_open_component = dinstalldirs_env_open
     },
 
     /* Next the dsched_dinstall_dirs_t install_dirs_data information */
@@ -53,7 +57,6 @@ dsched_dinstalldirs_base_component_t dsched_mca_dinstalldirs_env_component = {
         .pmixlibdir = NULL,
         .pmixincludedir = NULL
     },
-    .init = dinstalldirs_env_init
 };
 PMIX_MCA_BASE_COMPONENT_INIT(dsched, dinstalldirs, env)
 
@@ -66,23 +69,9 @@ PMIX_MCA_BASE_COMPONENT_INIT(dsched, dinstalldirs, env)
         dsched_mca_dinstalldirs_env_component.install_dirs_data.field = tmp; \
     } while (0)
 
-static void dinstalldirs_env_init(pmix_info_t info[], size_t ninfo)
+static int dinstalldirs_env_open(void)
 {
-    size_t n;
-    bool prefix_given = false;
-
-    /* check for a prefix value */
-    for (n = 0; n < ninfo; n++) {
-        if (PMIX_CHECK_KEY(&info[n], PMIX_PREFIX)) {
-            dsched_mca_dinstalldirs_env_component.install_dirs_data.prefix = info[n].value.data.string;
-            prefix_given = true;
-            break;
-        }
-    }
-
-    if (!prefix_given) {
-        SET_FIELD(prefix, "DSCHED_PREFIX");
-    }
+    SET_FIELD(prefix, "DSCHED_PREFIX");
     SET_FIELD(exec_prefix, "DSCHED_EXEC_PREFIX");
     SET_FIELD(bindir, "DSCHED_BINDIR");
     SET_FIELD(sbindir, "DSCHED_SBINDIR");
@@ -99,4 +88,6 @@ static void dinstalldirs_env_init(pmix_info_t info[], size_t ninfo)
     SET_FIELD(pmixdatadir, "DSCHED_PKGDATADIR");
     SET_FIELD(pmixlibdir, "DSCHED_PKGLIBDIR");
     SET_FIELD(pmixincludedir, "DSCHED_PKGINCLUDEDIR");
+
+    return DSCHED_SUCCESS;
 }

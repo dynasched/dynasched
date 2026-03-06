@@ -42,18 +42,19 @@ headers = \
 
 sources = \
         dsched_attr.c \
-        dsched_error.c
+        dsched_error.c \
+        dsched_show_help_content.c
 
-dsched_show_help_content.c: $(top_srcdir)/contrib/dsched-convert-help.py
+dsched_show_help_content.c: dsched-convert-help.py
 if DSCHED_PICKY_COMPILERS
-	$(PMIX_V_GEN) $(PYTHON) $(top_srcdir)/contrib/dsched-convert-help.py \
-		--root $(top_srcdir)/src \
-		--out $(top_srcdir)/src/util/dsched_show_help_content.c \
+	$(DSCHED_V_GEN) $(PYTHON) $(abs_srcdir)/dsched-convert-help.py \
+		--root $(abs_top_srcdir) \
+		--out dsched_show_help_content.c \
 		--purge
 else
-	$(PMIX_V_GEN) $(PYTHON) $(top_srcdir)/contrib/dsched-convert-help.py \
-		--root $(top_srcdir)/src \
-		--out $(top_srcdir)/src/util/dsched_show_help_content.c
+	$(DSCHED_V_GEN) $(PYTHON) $(abs_srcdir)/dsched-convert-help.py \
+		--root $(abs_top_srcdir) \
+		--out dsched_show_help_content.c
 endif
 
 libdschedutil_la_SOURCES = $(headers) $(sources)

@@ -36,8 +36,6 @@ DSCHED_EXPORT extern pmix_mca_base_framework_t dsched_dinstalldirs_base_framewor
    setup routines of dinstalldirs. */
 DSCHED_EXPORT char *dsched_dinstall_dirs_expand_setup(const char *input);
 
-DSCHED_EXPORT int dsched_dinstall_dirs_base_init(pmix_info_t info[], size_t ninfo);
-
 END_C_DECLS
 
 #endif /* DSCHED_BASE_DINSTALLDIRS_H */

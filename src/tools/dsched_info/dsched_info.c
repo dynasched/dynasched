@@ -68,7 +68,7 @@ static int register_framework_params(pmix_pointer_array_t *component_map)
 
     /* Register mca/base parameters */
     if (PMIX_SUCCESS != pmix_mca_base_open(NULL)) {
-        pmix_show_help("help-dsched-info.txt", "lib-call-fail", true, "pmix_mca_base_open",
+        pmix_show_help("help-dsched_info.txt", "lib-call-fail", true, "pmix_mca_base_open",
                        __FILE__, __LINE__);
         return PMIX_ERROR;
     }
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
     /* Initialize the argv parsing stuff */
     dsched_globals.basename = pmix_basename(argv[0]);
     if (DSCHED_SUCCESS != (ret = dsched_init_util())) {
-        pmix_show_help("help-dsched-info.txt", "lib-call-fail", true, "dsched_init_util", __FILE__,
+        pmix_show_help("help-dsched_info.txt", "lib-call-fail", true, "dsched_init_util", __FILE__,
                        __LINE__, NULL);
         exit(ret);
     }
@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
     /* parse the input argv to get values, including everyone's MCA params */
     PMIX_CONSTRUCT(&results, pmix_cli_result_t);
     rc = pmix_cmd_line_parse(argv, dinfoshorts, dinfooptions, NULL,
-                             &results, "help-dsched-info.txt");
+                             &results, "help-dsched_info.txt");
     if (PMIX_SUCCESS != rc) {
         PMIX_DESTRUCT(&results);
         if (PMIX_OPERATION_SUCCEEDED == rc) {
@@ -170,11 +170,12 @@ int main(int argc, char *argv[])
         }
         return rc;
     }
+
     // we do NOT accept arguments other than our own
     if (NULL != results.tail) {
         str = PMIx_Argv_join(results.tail, ' ');
         if (0 != strcmp(str, argv[0])) {
-            ptr = pmix_show_help_string("help-dsched-info.txt", "no-args", false,
+            ptr = pmix_show_help_string("help-dsched_info.txt", "no-args", false,
                                         dsched_globals.basename, str, dsched_globals.basename);
             free(str);
             if (NULL != ptr) {
@@ -216,7 +217,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "%s: Unrecognized value '%s' to color parameter\n", argv[0], color);
         exit(2);
     }
-
 
     /* set the flags */
     if (pmix_cmd_line_is_taken(&results, PMIX_CLI_PRETTY_PRINT)) {

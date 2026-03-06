@@ -10,7 +10,6 @@ dsched_globals_t dsched_globals = {
     .initialized = false,
     .version_string = NULL,
     .basename = NULL,
-    .show_help_data = NULL,
     .nodes = PMIX_POINTER_ARRAY_STATIC_INIT,
     .sessions = PMIX_POINTER_ARRAY_STATIC_INIT,
     .topologies = PMIX_POINTER_ARRAY_STATIC_INIT,

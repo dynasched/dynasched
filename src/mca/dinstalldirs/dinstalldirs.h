@@ -31,9 +31,6 @@ DSCHED_EXPORT extern pmix_pinstall_dirs_t dsched_dinstall_dirs;
  * using the current dsched_dinstall_dirs structure */
 DSCHED_EXPORT char *dsched_dinstall_dirs_expand(const char *input);
 
-/* optional initialization function */
-typedef void (*dsched_install_dirs_init_fn_t)(pmix_info_t info[], size_t ninfo);
-
 /**
  * Structure for dinstalldirs components.
  */
@@ -42,8 +39,6 @@ struct dsched_dinstalldirs_base_component_2_0_0_t {
     pmix_mca_base_component_t component;
     /** install directories provided by the given component */
     pmix_pinstall_dirs_t install_dirs_data;
-    /* optional init function */
-    dsched_install_dirs_init_fn_t init;
 };
 /**
  * Convenience typedef

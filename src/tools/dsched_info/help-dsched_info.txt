@@ -7,7 +7,7 @@
 #
 # $HEADER$
 #
-# This is the US/English general help file for PRTE's hwloc support.
+# This is the US/English general help file for DynaSched dsched-info tool.
 #
 [version]
 
@@ -21,7 +21,7 @@ Report bugs to %s
 
 Usage: "%s [OPTION]..."
 
-Provide detailed information on your PRRTE installation.
+Provide detailed information on your DynaSched installation.
 
 The following list of command line options are available. Note that
 more detailed help for any option can be obtained by adding that
@@ -41,18 +41,18 @@ option to the help request as "--help <option>".
 | <value>"             | ("key" is the parameter name; "value" is the  |
 |                      | parameter value)                              |
 +----------------------+-----------------------------------------------+
-| "--prtemca <key>     | Pass context-specific PRRTE MCA parameters    |
+| "--mca <key>         | Pass context-specific MCA parameters          |
 | <value>"             | ("key" is the parameter name; "value" is the  |
 |                      | parameter value)                              |
 |======================|===============================================|
 | "-a" | "--all"       | Show all configuration options and MCA        |
 |                      | parameters                                    |
 +----------------------+-----------------------------------------------+
-| "--arch"             | Show architecture on which PRRTE was compiled |
+| "--arch"             | Show architecture DynaSched was compiled on.  |
 +----------------------+-----------------------------------------------+
 | "-c" | "--config"    | Show configuration options                    |
 +----------------------+-----------------------------------------------+
-| "--hostname"         | Show the hostname on which PRRTE was          |
+| "--hostname"         | Show the hostname on which DynaSched was      |
 |                      | configured and built                          |
 +----------------------+-----------------------------------------------+
 | "--internal"         | Show internal MCA parameters (not meant to be |
@@ -65,12 +65,12 @@ option to the help request as "--help <option>".
 |                      | "<framework>" is given, then all components   |
 |                      | will be reported).                            |
 +----------------------+-----------------------------------------------+
-| "--path <type>"      | Show paths with which PRRTE was configured.   |
+| "--path <type>"      | Show paths with which DynaSched was configured|
 |                      | Accepts the following parameters: "prefix",   |
 |                      | "bindir", "libdir", "incdir", "mandir",       |
 |                      | "pkglibdir", "sysconfdir".                    |
 +----------------------+-----------------------------------------------+
-| "--show-version      | Show version of PRRTE or a component.  The    |
+| "--show-version      | Show version of DynaSched or a component.  The|
 | <type>:<part>"       | first parameter can be the keywords "prte",   |
 |                      | "all", or a framework name (indicating all    |
 |                      | components in a framework), or a              |
@@ -91,9 +91,9 @@ Pass a PMIx MCA parameter
 Syntax: "--pmixmca <key> <value>", where "key" is the parameter name
 and "value" is the parameter value.
 #
-[prtemca]
+[mca]
 
-Pass a PRRTE MCA parameter
+Pass a DynaSched MCA parameter
 
 Syntax: "--prtemca <key> <value>", where "key" is the parameter name
 and "value" is the parameter value.
@@ -117,25 +117,25 @@ modified by users)
 
 Syntax: "--path <arg0>"
 
-Show the paths with which PRRTE was configured.  Accepts the following
+Show the paths with which DynaSched was configured.  Accepts the following
 parameters: "prefix", "bindir", "libdir", "incdir", "mandir",
 "pkglibdir", "sysconfdir".
 #
 [arch]
 
-Syntax: "--arch" Show architecture on which PRRTE was compiled
+Syntax: "--arch" Show architecture on which DynaSched was compiled
 #
 [config]
 
 Syntax: "-c" or "--config"
 
-Show configuration options used to configure PRRTE
+Show configuration options used to configure DynaSched
 #
 [hostname]
 
 Syntax: "--hostname"
 
-Show the hostname upon which PRRTE was configured and built
+Show the hostname upon which DynaSched was configured and built
 #
 [all]
 
@@ -148,13 +148,3 @@ Show all configuration options and MCA parameters
 Syntax: "--include-pmix"
 
 Include PMIx params and build info in output
-#
-[lib-call-fail]
-
-A library call unexpectedly failed.  This is a terminal error; please
-show this message to a PRTE wizard:
-
-   Library call: %s Source file: %s Source line number: %d
-
-Aborting...
-
