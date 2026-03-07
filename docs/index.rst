@@ -13,7 +13,7 @@ Documentation locations
 
 This documentation can be found in the following locations:
 
-* On the web: https://docs.dynasched.org/
+* On the web: https://dynasched.readthedocs.io
 * In the tarball: ``docs/_build/html/index.html``
 * Installed: ``$prefix/share/doc/dynasched/html/index.html``
 
