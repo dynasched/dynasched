@@ -1,23 +1,23 @@
+# .readthedocs.yaml
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 
 # Required
 version: 2
 
-# Set the OS, Python version, and other tools you might need
+# Currently, RTD needs to select an OS with OpenSSL>=1.1.1 because of
+# urllib3's dependence on that system library.  (alternately, pin urllib3<2
+# See https://github.com/urllib3/urllib3/issues/2168
 build:
   os: ubuntu-24.04
   tools:
     python: "3.13"
 
-# Build documentation in the "docs/" directory with Sphinx
-sphinx:
-   configuration: docs/conf.py
+python:
+  install:
+    - requirements: docs/requirements.txt
 
-# Optionally, but recommended,
-# declare the Python requirements required to build your documentation
-# See https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
-# python:
-#    install:
-#    - requirements: docs/requirements.txt
-  
+# Build documentation in the docs/ directory with Sphinx
+sphinx:
+  configuration: docs/conf.py
+  fail_on_warning: true
