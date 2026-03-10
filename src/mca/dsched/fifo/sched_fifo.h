@@ -25,7 +25,7 @@
 
 #include "dsched_config.h"
 
-#include "src/mca/sched/sched.h"
+#include "src/mca/dsched/dsched.h"
 
 BEGIN_C_DECLS
 
@@ -33,9 +33,9 @@ BEGIN_C_DECLS
  * Local Component structures
  */
 
-DSCHED_MODULE_EXPORT extern dsched_sched_base_component_t dsched_mca_sched_fifo_component;
+DSCHED_MODULE_EXPORT extern dsched_dsched_base_component_t dsched_mca_dsched_fifo_component;
 
-DSCHED_EXPORT extern dsched_sched_base_module_t dsched_sched_fifo_module;
+DSCHED_EXPORT extern dsched_dsched_base_module_t dsched_sched_fifo_module;
 
 END_C_DECLS
 

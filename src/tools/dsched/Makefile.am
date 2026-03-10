@@ -35,12 +35,17 @@ AM_CFLAGS = \
             -DDSCHED_CC_ABSOLUTE="\"@DSCHED_CC_ABSOLUTE@\"" \
             -DDSCHED_GREEK_VERSION="\"@DSCHED_GREEK_VERSION@\"" \
             -DDSCHED_REPO_REV="\"@DSCHED_REPO_REV@\"" \
-            -DPMIX_RELEASE_DATE="\"@PMIX_RELEASE_DATE@\""
+            -DDSCHED_RELEASE_DATE="\"@DSCHED_RELEASE_DATE@\""
 
 bin_PROGRAMS = dsched
 
 dsched_SOURCES =  \
-        dsched.c
+        dsched.h \
+        dsched.c \
+        server.c \
+        backend.c \
+        session.c \
+        queries.c
 
 dsched_LDADD = \
     $(dsched_libevent_LIBS) \
@@ -50,3 +55,6 @@ dsched_LDADD = \
 
 uninstall-local:
 	rm -f $(DESTDIR)$(bindir)/dsched$(EXEEXT)
+
+EXTRA_DIST = \
+    help-dsched.txt

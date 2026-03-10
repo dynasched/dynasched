@@ -28,98 +28,81 @@
  *
  */
 
-#include "prte_config.h"
+#include "dsched_config.h"
 
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
 #endif
 #include <fcntl.h>
 
-#include "src/hwloc/hwloc-internal.h"
-#include "src/pmix/pmix-internal.h"
 #include "src/util/pmix_argv.h"
+#include "src/util/pmix_name_fns.h"
 #include "src/util/pmix_os_dirpath.h"
 #include "src/util/pmix_output.h"
-
-#include "src/mca/errmgr/errmgr.h"
-#include "src/mca/grpcomm/base/base.h"
-#include "src/mca/iof/base/base.h"
-#include "src/mca/iof/iof.h"
-#include "src/mca/plm/base/plm_private.h"
-#include "src/mca/plm/plm.h"
-#include "src/mca/plm/base/plm_private.h"
-#include "src/mca/rmaps/rmaps_types.h"
-#include "src/rml/rml.h"
-#include "src/mca/schizo/schizo.h"
-#include "src/mca/state/state.h"
-#include "src/runtime/prte_globals.h"
-#include "src/runtime/prte_locks.h"
-#include "src/threads/pmix_threads.h"
-#include "src/util/name_fns.h"
 #include "src/util/pmix_show_help.h"
+#include "src/threads/pmix_threads.h"
 
-#include "src/prted/pmix/pmix_server_internal.h"
-#include "src/tools/psched/psched.h"
+#include "src/include/dsched_globals.h"
+#include "src/tools/dsched/dsched.h"
 
 static void opcbfunc(pmix_status_t status, void *cbdata)
 {
-    prte_pmix_lock_t *lock = (prte_pmix_lock_t *) cbdata;
+    pmix_lock_t *lock = (pmix_lock_t *) cbdata;
 
-    lock->status = prte_pmix_convert_status(status);
-    PRTE_PMIX_WAKEUP_THREAD(lock);
+    lock->status = status;
+    PMIX_WAKEUP_THREAD(lock);
 }
 
 /* add any info that the tool couldn't self-assign */
 static int register_tool(pmix_nspace_t nspace)
 {
     pmix_status_t ret;
-    prte_pmix_lock_t lock;
-    int rc;
-    prte_pmix_tool_t *tl;
+    pmix_lock_t lock;
+    pmix_proclist_t *tl;
 
     /* record this tool */
-    tl = PMIX_NEW(prte_pmix_tool_t);
-    PMIX_LOAD_PROCID(&tl->name, nspace, 0);
-    pmix_list_append(&psched_globals.tools, &tl->super);
+    tl = PMIX_NEW(pmix_proclist_t);
+    PMIX_LOAD_PROCID(&tl->proc, nspace, 0);
+    pmix_list_append(&dsched_globals.tools, &tl->super);
 
-    PRTE_PMIX_CONSTRUCT_LOCK(&lock);
+    PMIX_CONSTRUCT_LOCK(&lock);
     ret = PMIx_server_register_nspace(nspace, 1, NULL, 0,
                                       opcbfunc, &lock);
     if (PMIX_SUCCESS != ret) {
         PMIX_ERROR_LOG(ret);
-        rc = prte_pmix_convert_status(ret);
-        PRTE_PMIX_DESTRUCT_LOCK(&lock);
-        return rc;
+        PMIX_DESTRUCT_LOCK(&lock);
+        return ret;
     }
-    PRTE_PMIX_WAIT_THREAD(&lock);
-    rc = lock.status;
-    PRTE_PMIX_DESTRUCT_LOCK(&lock);
-    return rc;
+    PMIX_WAIT_THREAD(&lock);
+    ret = lock.status;
+    PMIX_DESTRUCT_LOCK(&lock);
+    return ret;
 }
 
 static void _toolconn(int sd, short args, void *cbdata)
 {
-    pmix_server_req_t *cd = (pmix_server_req_t *) cbdata;
-    int rc;
+    dsched_shift_caddy_t *cd = (dsched_shift_caddy_t *) cbdata;
     size_t n;
     pmix_status_t xrc;
-    PRTE_HIDE_UNUSED_PARAMS(sd, args);
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
     PMIX_ACQUIRE_OBJECT(cd);
 
-    pmix_output_verbose(2, prte_pmix_server_globals.output,
+    pmix_output_verbose(2, dsched_globals.pmix_output,
                         "%s PROCESSING TOOL CONNECTION",
-                        PRTE_NAME_PRINT(PRTE_PROC_MY_NAME));
+                        PMIX_NAME_PRINT(&dsched_globals.myid));
 
     /* check for directives */
     if (NULL != cd->info) {
         for (n = 0; n < cd->ninfo; n++) {
             if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_SILENT_TERMINATION)) {
                 cd->flag = PMIX_INFO_TRUE(&cd->info[n]);
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_VERSION_INFO)) {
                 /* we ignore this for now */
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_USERID)) {
-                PMIX_VALUE_GET_NUMBER(xrc, &cd->info[n].value, cd->uid, uid_t);
+                xrc = PMIx_Value_get_number(&cd->info[n].value, &cd->uid, PMIX_UINT32);
                 if (PMIX_SUCCESS != xrc) {
                     if (NULL != cd->toolcbfunc) {
                         cd->toolcbfunc(xrc, NULL, cd->cbdata);
@@ -127,8 +110,9 @@ static void _toolconn(int sd, short args, void *cbdata)
                     PMIX_RELEASE(cd);
                     return;
                 }
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_GRPID)) {
-                PMIX_VALUE_GET_NUMBER(xrc, &cd->info[n].value, cd->gid, gid_t);
+                xrc = PMIx_Value_get_number(&cd->info[n].value, &cd->gid, PMIX_UINT32);
                 if (PMIX_SUCCESS != xrc) {
                     if (NULL != cd->toolcbfunc) {
                         cd->toolcbfunc(xrc, NULL, cd->cbdata);
@@ -136,20 +120,27 @@ static void _toolconn(int sd, short args, void *cbdata)
                     PMIX_RELEASE(cd);
                     return;
                 }
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_NSPACE)) {
-                PMIX_LOAD_NSPACE(cd->target.nspace, cd->info[n].value.data.string);
+                PMIx_Load_nspace(cd->target.nspace, cd->info[n].value.data.string);
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_RANK)) {
                 cd->target.rank = cd->info[n].value.data.rank;
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_HOSTNAME)) {
-                cd->operation = strdup(cd->info[n].value.data.string);
+                cd->hostname = strdup(cd->info[n].value.data.string);
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_CMD_LINE)) {
                 cd->cmdline = strdup(cd->info[n].value.data.string);
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_LAUNCHER)) {
                 cd->launcher = PMIX_INFO_TRUE(&cd->info[n]);
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_SERVER_SYS_CONTROLLER)) {
                 cd->scheduler = PMIX_INFO_TRUE(&cd->info[n]);
+
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_PROC_PID)) {
-                PMIX_VALUE_GET_NUMBER(xrc, &cd->info[n].value, cd->pid, pid_t);
+                xrc = PMIx_Value_get_number(&cd->info[n].value, &cd->pid, PMIX_PID);
                 if (PMIX_SUCCESS != xrc) {
                     if (NULL != cd->toolcbfunc) {
                         cd->toolcbfunc(xrc, NULL, cd->cbdata);
@@ -161,16 +152,16 @@ static void _toolconn(int sd, short args, void *cbdata)
         }
     }
 
-    pmix_output_verbose(2, prte_pmix_server_globals.output,
+    pmix_output_verbose(2, dsched_globals.pmix_output,
                         "%s %s CONNECTION FROM UID %d GID %d NSPACE %s",
-                        PRTE_NAME_PRINT(PRTE_PROC_MY_NAME),
+                        PMIX_NAME_PRINT(&dsched_globals.myid),
                         cd->launcher ? "LAUNCHER" : (cd->scheduler ? "SYSTEM CONTROLLER" : "TOOL"),
                         cd->uid, cd->gid, cd->target.nspace);
 
     if (cd->scheduler) {
         /* mark that the system controller has attached to us */
-        psched_globals.controller_connected = true;
-        PMIX_LOAD_PROCID(&psched_globals.syscontroller,
+        dsched_globals.controller_connected = true;
+        PMIx_Load_procid(&dsched_globals.syscontroller,
                          cd->target.nspace, cd->target.rank);
         /* we cannot immediately set the system controller to be our
          * PMIx server as the PMIx library hasn't finished
@@ -180,14 +171,11 @@ static void _toolconn(int sd, short args, void *cbdata)
     /* if the tool doesn't already have a self-assigned name, then
      * there isn't much we can do about it */
     xrc = PMIX_SUCCESS;
-    if (PMIX_NSPACE_INVALID(cd->target.nspace) || PMIX_RANK_INVALID == cd->target.rank) {
+    if (PMIx_Nspace_invalid(cd->target.nspace) || PMIX_RANK_INVALID == cd->target.rank) {
         xrc = PMIX_ERR_BAD_PARAM;
     } else {
         /* the tool is not a client of ours, but we can provide at least some information */
-        rc = register_tool(cd->target.nspace);
-        if (PRTE_SUCCESS != rc) {
-            xrc = prte_pmix_convert_rc(rc);
-        }
+        xrc = register_tool(cd->target.nspace);
     }
     if (NULL != cd->toolcbfunc) {
         cd->toolcbfunc(xrc, &cd->target, cd->cbdata);
@@ -195,157 +183,25 @@ static void _toolconn(int sd, short args, void *cbdata)
     PMIX_RELEASE(cd);
 }
 
-void psched_tool_connected_fn(pmix_info_t *info, size_t ninfo,
+void dsched_tool_connected_fn(pmix_info_t *info, size_t ninfo,
                               pmix_tool_connection_cbfunc_t cbfunc,
                               void *cbdata)
 {
-    pmix_server_req_t *cd;
+    dsched_shift_caddy_t *cd;
 
-    pmix_output_verbose(2, prte_pmix_server_globals.output,
+    pmix_output_verbose(2, dsched_globals.pmix_output,
                         "%s TOOL CONNECTION REQUEST RECVD",
-                        PRTE_NAME_PRINT(PRTE_PROC_MY_NAME));
+                        PMIX_NAME_PRINT(&dsched_globals.myid));
 
     /* need to threadshift this request */
-    cd = PMIX_NEW(pmix_server_req_t);
+    cd = PMIX_NEW(dsched_shift_caddy_t);
     cd->info = info;
     cd->ninfo = ninfo;
     cd->toolcbfunc = cbfunc;
     cd->cbdata = cbdata;
     cd->target.rank = 0; // set default for tool
 
-    prte_event_set(prte_event_base, &(cd->ev), -1, PRTE_EV_WRITE, _toolconn, cd);
+    dsched_event_set(dsched_globals.evbase, &(cd->ev), -1, DSCHED_EV_WRITE, _toolconn, cd);
     PMIX_POST_OBJECT(cd);
-    prte_event_active(&(cd->ev), PRTE_EV_WRITE, 1);
-}
-
-pmix_status_t psched_job_ctrl_fn(const pmix_proc_t *requestor,
-                                 const pmix_proc_t targets[], size_t ntargets,
-                                 const pmix_info_t directives[], size_t ndirs,
-                                 pmix_info_cbfunc_t cbfunc, void *cbdata)
-{
-    int rc, j;
-    int32_t signum;
-    size_t m, n;
-    prte_proc_t *proc;
-    pmix_nspace_t jobid;
-    pmix_pointer_array_t parray, *ptrarray;
-    pmix_data_buffer_t *cmd;
-    prte_daemon_cmd_flag_t cmmnd;
-    prte_grpcomm_signature_t *sig;
-    pmix_proc_t *proct;
-    PRTE_HIDE_UNUSED_PARAMS(cbfunc, cbdata);
-
-    pmix_output_verbose(2, prte_pmix_server_globals.output,
-                        "%s job control request from %s:%d",
-                        PRTE_NAME_PRINT(PRTE_PROC_MY_NAME),
-                        requestor->nspace, requestor->rank);
-
-    for (m = 0; m < ndirs; m++) {
-        if (0 == strncmp(directives[m].key, PMIX_JOB_CTRL_KILL, PMIX_MAX_KEYLEN)) {
-            /* convert the list of targets to a pointer array */
-            if (NULL == targets) {
-                ptrarray = NULL;
-            } else {
-                PMIX_CONSTRUCT(&parray, pmix_pointer_array_t);
-                for (n = 0; n < ntargets; n++) {
-                    if (PMIX_RANK_WILDCARD == targets[n].rank) {
-                        /* create an object */
-                        proc = PMIX_NEW(prte_proc_t);
-                        PMIX_LOAD_PROCID(&proc->name, targets[n].nspace, PMIX_RANK_WILDCARD);
-                    } else {
-                        /* get the proc object for this proc */
-                        if (NULL == (proc = prte_get_proc_object(&targets[n]))) {
-                            PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
-                            continue;
-                        }
-                        PMIX_RETAIN(proc);
-                    }
-                    pmix_pointer_array_add(&parray, proc);
-                }
-                ptrarray = &parray;
-            }
-            if (PRTE_SUCCESS != (rc = prte_plm.terminate_procs(ptrarray))) {
-                PRTE_ERROR_LOG(rc);
-            }
-            if (NULL != ptrarray) {
-                /* cleanup the array */
-                for (j = 0; j < parray.size; j++) {
-                    if (NULL != (proc = (prte_proc_t *) pmix_pointer_array_get_item(&parray, j))) {
-                        PMIX_RELEASE(proc);
-                    }
-                }
-                PMIX_DESTRUCT(&parray);
-            }
-        } else if (0 == strncmp(directives[m].key, PMIX_JOB_CTRL_TERMINATE, PMIX_MAX_KEYLEN)) {
-            if (NULL == targets) {
-                /* terminate the daemons and all running jobs */
-                PMIX_DATA_BUFFER_CREATE(cmd);
-                /* pack the command */
-                cmmnd = PRTE_DAEMON_HALT_VM_CMD;
-                rc = PMIx_Data_pack(NULL, cmd, &cmmnd, 1, PMIX_UINT8);
-                if (PMIX_SUCCESS != rc) {
-                    PMIX_ERROR_LOG(rc);
-                    PMIX_DATA_BUFFER_RELEASE(cmd);
-                    return rc;
-                }
-                /* goes to all daemons */
-                sig = PMIX_NEW(prte_grpcomm_signature_t);
-                sig->signature = (pmix_proc_t *) malloc(sizeof(pmix_proc_t));
-                sig->sz = 1;
-                PMIX_LOAD_PROCID(&sig->signature[0], PRTE_PROC_MY_NAME->nspace, PMIX_RANK_WILDCARD);
-                if (PRTE_SUCCESS != (rc = prte_grpcomm.xcast(sig, PRTE_RML_TAG_DAEMON, cmd))) {
-                    PRTE_ERROR_LOG(rc);
-                }
-                PMIX_DATA_BUFFER_RELEASE(cmd);
-                PMIX_RELEASE(sig);
-            }
-        } else if (0 == strncmp(directives[m].key, PMIX_JOB_CTRL_SIGNAL, PMIX_MAX_KEYLEN)) {
-            PMIX_DATA_BUFFER_CREATE(cmd);
-            cmmnd = PRTE_DAEMON_SIGNAL_LOCAL_PROCS;
-            /* pack the command */
-            rc = PMIx_Data_pack(NULL, cmd, &cmmnd, 1, PMIX_UINT8);
-            if (PMIX_SUCCESS != rc) {
-                PMIX_ERROR_LOG(rc);
-                PMIX_DATA_BUFFER_RELEASE(cmd);
-                return rc;
-            }
-            /* pack the target jobid */
-            if (NULL == targets) {
-                PMIX_LOAD_NSPACE(jobid, NULL);
-            } else {
-                proct = (pmix_proc_t *) &targets[0];
-                PMIX_LOAD_NSPACE(jobid, proct->nspace);
-            }
-            rc = PMIx_Data_pack(NULL, cmd, &jobid, 1, PMIX_PROC_NSPACE);
-            if (PMIX_SUCCESS != rc) {
-                PMIX_ERROR_LOG(rc);
-                PMIX_DATA_BUFFER_RELEASE(cmd);
-                return rc;
-            }
-            /* pack the signal */
-            PMIX_VALUE_GET_NUMBER(rc, &directives[m].value, signum, int32_t);
-            if (PMIX_SUCCESS != rc) {
-                PMIX_DATA_BUFFER_RELEASE(cmd);
-                return rc;
-            }
-            rc = PMIx_Data_pack(NULL, cmd, &signum, 1, PMIX_INT32);
-            if (PMIX_SUCCESS != rc) {
-                PMIX_ERROR_LOG(rc);
-                PMIX_DATA_BUFFER_RELEASE(cmd);
-                return rc;
-            }
-            /* goes to all daemons */
-            sig = PMIX_NEW(prte_grpcomm_signature_t);
-            sig->signature = (pmix_proc_t *) malloc(sizeof(pmix_proc_t));
-            sig->sz = 1;
-            PMIX_LOAD_PROCID(&sig->signature[0], PRTE_PROC_MY_NAME->nspace, PMIX_RANK_WILDCARD);
-            if (PRTE_SUCCESS != (rc = prte_grpcomm.xcast(sig, PRTE_RML_TAG_DAEMON, cmd))) {
-                PRTE_ERROR_LOG(rc);
-            }
-            PMIX_DATA_BUFFER_RELEASE(cmd);
-            PMIX_RELEASE(sig);
-        }
-    }
-
-    return PMIX_OPERATION_SUCCEEDED;
+    dsched_event_active(&(cd->ev), DSCHED_EV_WRITE, 1);
 }

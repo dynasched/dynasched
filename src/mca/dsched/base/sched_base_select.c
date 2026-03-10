@@ -27,22 +27,20 @@
 
 #include <string.h>
 
-#include "src/mca/base/pmix_base.h"
-#include "src/mca/mca.h"
-#include "src/mca/sched/base/base.h"
+#include "src/mca/dsched/base/base.h"
 
-int dsched_sched_base_select(void)
+int dsched_dsched_base_select(void)
 {
     int exit_status = DSCHED_SUCCESS;
-    dsched_sched_base_component_t *best_component = NULL;
-    dsched_sched_base_module_t *best_module = NULL;
+    dsched_dsched_base_component_t *best_component = NULL;
+    dsched_dsched_base_module_t *best_module = NULL;
 
     /*
      * Select the best component
      */
     if (DSCHED_SUCCESS
-        != pmix_mca_base_select("sched", dsched_sched_base_framework.framework_output,
-                                &dsched_sched_base_framework.framework_components,
+        != pmix_mca_base_select("dsched", dsched_dsched_base_framework.framework_output,
+                                &dsched_dsched_base_framework.framework_components,
                                 (pmix_mca_base_module_t **) &best_module,
                                 (pmix_mca_base_component_t **) &best_component, NULL)) {
         /* This will only happen if no component was selected */

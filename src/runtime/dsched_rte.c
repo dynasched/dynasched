@@ -45,6 +45,7 @@
 #include "src/util/pmix_if.h"
 #include "src/util/pmix_net.h"
 #include "src/util/pmix_environ.h"
+#include "src/util/pmix_if.h"
 #include "src/util/pmix_os_path.h"
 #include "src/util/pmix_output.h"
 #include "src/util/pmix_printf.h"
@@ -153,15 +154,18 @@ static bool util_initialized = false;
 
 int dsched_init_util(void)
 {
-    int ret, n;
-    char *path = NULL;
-    char *evar, **prefixes;
+    int ret;
+    char *path = NULL, *ptr;
     const char *rvers;
     char token[100];
     char *error;
     unsigned int major, minor, release;
     unsigned int reqmajor, reqminor, reqrelease;
     unsigned int maxmajor, maxminor, maxrelease;
+    char hostname[DSCHED_MAXHOSTNAMELEN];
+    char **prefixes;
+    bool match;
+    int i, idx;
 
     if (util_initialized) {
         return DSCHED_SUCCESS;
@@ -211,19 +215,6 @@ int dsched_init_util(void)
     /* carry across the toolname */
     pmix_tool_basename = dsched_globals.basename;
 
-    // publish MCA prefixes
-    prefixes = NULL;
-    for (n=0; NULL != dsched_framework_names[n]; n++) {
-        if (0 == strcmp("common", dsched_framework_names[n])) {
-            continue;
-        }
-        PMIx_Argv_append_nosize(&prefixes, dsched_framework_names[n]);
-    }
-    evar = PMIx_Argv_join(prefixes, ',');
-    pmix_setenv("DSCHED_MCA_PREFIXES", evar, true, &environ);
-    free(evar);
-    PMIx_Argv_free(prefixes);
-
     /* initialize install dirs code */
     ret = pmix_mca_base_framework_open(&dsched_dinstalldirs_base_framework,
                                        PMIX_MCA_BASE_OPEN_DEFAULT);
@@ -260,17 +251,79 @@ int dsched_init_util(void)
                            "dsched register params",
                            DSCHED_ERROR_NAME(ret), ret);
         }
-        return 1;
+        return ret;
     }
 
     /* pre-load any default mca param files */
     preload_default_mca_params();
 
+    /* Register all global MCA Params */
+    if (DSCHED_SUCCESS != (ret = dsched_register_params())) {
+        if (DSCHED_ERR_SILENT != ret) {
+            pmix_show_help("help-dsched-runtime", "dsched_init:startup:internal-failure", true,
+                           "dsched register params",
+                           DSCHED_ERROR_NAME(ret), ret);
+        }
+        return ret;
+    }
+
     /* initialize the output system */
     pmix_output_init();
 
     /* set the nodename so anyone who needs it has it */
-    gethostname(dsched_globals.hostname, DSCHED_MAXHOSTNAMELEN);
+    gethostname(hostname, DSCHED_MAXHOSTNAMELEN);
+    /* add network aliases to our list of alias hostnames */
+    pmix_ifgetaliases(&dsched_globals.aliases);
+    /* we have to strip node names here, if user directs, to ensure that
+     * the names returned by the DVM match ours
+     */
+    if (NULL != dsched_globals.strip_prefixes && !pmix_net_isaddr(hostname)) {
+        prefixes = PMIx_Argv_split(dsched_globals.strip_prefixes, ',');
+        match = false;
+        for (i = 0; NULL != prefixes[i]; i++) {
+            if (0 == strncmp(hostname, prefixes[i], strlen(prefixes[i]))) {
+                /* remove the prefix and leading zeroes */
+                idx = strlen(prefixes[i]);
+                while (idx < (int) strlen(hostname)
+                       && (hostname[idx] <= '0' || '9' < hostname[idx])) {
+                    idx++;
+                }
+                if ((int) strlen(hostname) <= idx) {
+                    /* there were no non-zero numbers in the name */
+                    dsched_globals.hostname = strdup(&hostname[strlen(prefixes[i])]);
+                } else {
+                    dsched_globals.hostname = strdup(&hostname[idx]);
+                }
+                /* add this to our list of aliases */
+                PMIx_Argv_append_unique_nosize(&dsched_globals.aliases, dsched_globals.hostname);
+                match = true;
+                break;
+            }
+        }
+        /* if we didn't find a match, then just use the hostname as-is */
+        if (!match) {
+            dsched_globals.hostname = strdup(hostname);
+        }
+        PMIx_Argv_free(prefixes);
+    } else {
+        dsched_globals.hostname = strdup(hostname);
+    }
+
+    // if we are not keeping FQDN, then strip it off if not an IP address
+    if (!pmix_net_isaddr(dsched_globals.hostname) &&
+        NULL != (ptr = strchr(dsched_globals.hostname, '.'))) {
+        if (dsched_globals.keep_fqdn_hostnames) {
+            /* retain the non-fqdn name as an alias */
+            *ptr = '\0';
+            PMIx_Argv_append_unique_nosize(&dsched_globals.aliases, dsched_globals.hostname);
+            *ptr = '.';
+        } else {
+            /* add the fqdn name as an alias */
+            PMIx_Argv_append_unique_nosize(&dsched_globals.aliases, dsched_globals.hostname);
+            /* retain the non-fqdn name as the node's name */
+            *ptr = '\0';
+        }
+    }
 
     /*
      * Initialize the event library
@@ -279,6 +332,7 @@ int dsched_init_util(void)
         error = "dsched_event_base_open";
         goto error;
     }
+    dsched_globals.evactive = true;
 
     return DSCHED_SUCCESS;
 
@@ -289,98 +343,6 @@ error:
     }
 
     return ret;
-}
-
-int dsched_init(pmix_info_t *info, size_t ninfo)
-{
-    int ret;
-    char *error;
-    DSCHED_HIDE_UNUSED_PARAMS(info, ninfo);
-
-    if (!util_initialized) {
-        dsched_init_util();
-    }
-
-    /* setup the global session and node arrays */
-    PMIX_CONSTRUCT(&dsched_globals.nodes, pmix_pointer_array_t);
-    ret = pmix_pointer_array_init(&dsched_globals.nodes, DSCHED_GLOBAL_ARRAY_BLOCK_SIZE,
-                                  DSCHED_GLOBAL_ARRAY_MAX_SIZE,
-                                  DSCHED_GLOBAL_ARRAY_BLOCK_SIZE);
-    if (PMIX_SUCCESS != ret) {
-        PMIX_ERROR_LOG(ret);
-        error = "setup node array";
-        goto error;
-    }
-    PMIX_CONSTRUCT(&dsched_globals.sessions, pmix_pointer_array_t);
-    ret = pmix_pointer_array_init(&dsched_globals.sessions,
-                                  DSCHED_GLOBAL_ARRAY_BLOCK_SIZE,
-                                  DSCHED_GLOBAL_ARRAY_MAX_SIZE,
-                                  DSCHED_GLOBAL_ARRAY_BLOCK_SIZE);
-    if (PMIX_SUCCESS != ret) {
-        PMIX_ERROR_LOG(ret);
-        error = "setup session array";
-        goto error;
-    }
-
-    // setup an array for node topologies
-    PMIX_CONSTRUCT(&dsched_globals.topologies, pmix_pointer_array_t);
-    ret = pmix_pointer_array_init(&dsched_globals.topologies, DSCHED_GLOBAL_ARRAY_BLOCK_SIZE,
-                                  DSCHED_GLOBAL_ARRAY_MAX_SIZE,
-                                  DSCHED_GLOBAL_ARRAY_BLOCK_SIZE);
-    if (PMIX_SUCCESS != ret) {
-        PMIX_ERROR_LOG(ret);
-        error = "setup node topologies array";
-        goto error;
-    }
-
-    /* initialize the cache */
-    PMIX_CONSTRUCT(&dsched_globals.cache, pmix_pointer_array_t);
-    pmix_pointer_array_init(&dsched_globals.cache, 1, INT_MAX, 1);
-
-    return DSCHED_SUCCESS;
-
-error:
-    if (DSCHED_ERR_SILENT != ret) {
-        pmix_show_help("help-dsched-runtime", "dsched_init:startup:internal-failure", true, error,
-                       DSCHED_ERROR_NAME(ret), ret);
-    }
-
-    return ret;
-}
-
-static bool check_pmix_overlap(char *var, char *value, bool overwrite)
-{
-    char *tmp;
-
-    if (0 == strncmp(var, "dl_", 3)) {
-        pmix_asprintf(&tmp, "PMIX_MCA_pdl_%s", &var[3]);
-        setenv(tmp, value, overwrite);
-        free(tmp);
-        return true;
-    } else if (0 == strncmp(var, "oob_", 4) &&
-               NULL == strstr(var, "verbose")) {
-        pmix_asprintf(&tmp, "PMIX_MCA_ptl_%s", &var[4]);
-        setenv(tmp, value, overwrite);
-        free(tmp);
-        return true;
-    } else if (0 == strncmp(var, "hwloc_", 6)) {
-        pmix_asprintf(&tmp, "PMIX_MCA_%s", var);
-        setenv(tmp, value, overwrite);
-        free(tmp);
-        return true;
-    } else if (0 == strncmp(var, "if_", 3)) {
-        // need to convert if to pif
-        pmix_asprintf(&tmp, "PMIX_MCA_pif_%s", &var[3]);
-        setenv(tmp, value, overwrite);
-        free(tmp);
-        return true;
-    } else if (0 == strncmp(var, "mca_", 4)) {
-        pmix_asprintf(&tmp, "PMIX_MCA_%s", var);
-        setenv(tmp, value, overwrite);
-        free(tmp);
-        return true;
-    }
-    return false;
 }
 
 static int preload_default_mca_params(void)
@@ -506,13 +468,6 @@ static int preload_default_mca_params(void)
                     // have a value in our environment
                     setenv(tmp, fv->mbvfv_value, true);
                     free(tmp);
-                    // if this relates to the DL, OOB, HWLOC, or IF,
-                    // or mca frameworks, then we also need to set
-                    // the equivalent PMIx value
-                    if (check_pmix_overlap(fv->mbvfv_var, fv->mbvfv_value, true) &&
-                        !dsched_globals.suppress_override_warning) {
-                        pmix_show_help("help-pmix-mca-var.txt", "overridden-param-set", true, fv->mbvfv_var);
-                    }
                 }
             }
         }
@@ -535,10 +490,6 @@ static int preload_default_mca_params(void)
             // have a value in our environment
             setenv(tmp, fv->mbvfv_value, false);
             free(tmp);
-            // if this relates to the DL, OOB, HWLOC, or IF,
-            // or mca frameworks, then we also need to set
-            // the equivalent PMIx value
-            check_pmix_overlap(fv->mbvfv_var, fv->mbvfv_value, false);
         }
     }
 

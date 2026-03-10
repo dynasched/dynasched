@@ -47,14 +47,6 @@ BEGIN_C_DECLS
  */
 DSCHED_EXPORT int dsched_init_util(void);
 
-DSCHED_EXPORT int dsched_init(pmix_info_t info[], size_t ninfo);
-
-/**
- * Finalize the DSCHED layer, including the MCA system.
- *
- */
-DSCHED_EXPORT void dsched_finalize(void);
-
 DSCHED_EXPORT int dsched_register_params(void);
 
 END_C_DECLS

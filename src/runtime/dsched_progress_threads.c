@@ -143,10 +143,10 @@ static int start_progress_engine(dsched_progress_tracker_t *trk)
     }
 
 #ifdef HAVE_PTHREAD_SETAFFINITY_NP
-    if (NULL != dsched_progress_thread_cpus) {
+    if (NULL != dsched_globals.progress_thread_cpus) {
         CPU_ZERO(&cpuset);
         // comma-delimited list of cpu ranges
-        ranges = PMIx_Argv_split(dsched_progress_thread_cpus, ',');
+        ranges = PMIx_Argv_split(dsched_globals.progress_thread_cpus, ',');
         for (n=0; NULL != ranges[n]; n++) {
             // look for '-'
             start = strtoul(ranges[n], &dash, 10);
@@ -161,7 +161,7 @@ static int start_progress_engine(dsched_progress_tracker_t *trk)
             }
         }
         rc = pthread_setaffinity_np(trk->engine.t_handle, sizeof(cpu_set_t), &cpuset);
-        if (0 != rc && dsched_bind_progress_thread_reqd) {
+        if (0 != rc && dsched_globals.bind_progress_thread_reqd) {
             pmix_output(0, "Failed to bind progress thread %s",
                         (NULL == trk->name) ? "NULL" : trk->name);
             rc = DSCHED_ERR_NOT_SUPPORTED;

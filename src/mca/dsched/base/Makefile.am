@@ -13,6 +13,6 @@ EXTRA_DIST += \
 headers += \
         base/base.h
 
-libdschedmca_sched_la_SOURCES += \
+libdschedmca_dsched_la_SOURCES += \
         base/sched_base_select.c \
         base/sched_base_frame.c
