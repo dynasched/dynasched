@@ -21,19 +21,11 @@
 
 dsched_file_from_platform = @DSCHED_PARAM_FROM_PLATFORM@
 dsched_mca_param_file = @DSCHED_DEFAULT_MCA_PARAM_CONF@
-dsched_config_file = @DSCHED_DEFAULT_CONFIG@
 
-EXTRA_DIST = dsched-mca-params.conf dsched-default-hostfile dsched.conf
-
-# Note that dsched-mca-params.conf and dsched.conf are
-# "special" -- we do not list them here.
-dsched_install_hook_files = dsched-default-hostfile
+EXTRA_DIST = dsched-mca-params.conf
 
 # Steal a little trickery from a generated Makefile to only install
-# files if they do not already exist at the target.  Be sure to read
-# thread starting here
-# (https://www.open-mpi.org/community/lists/devel/2008/06/4080.php) for
-# details why the mkdir is in install-data-local.
+# files if they do not already exist at the target.
 
 install-data-local:
 	@ $(MKDIR_P) $(DESTDIR)$(sysconfdir); \
@@ -50,34 +42,12 @@ install-data-local:
 		$(INSTALL_DATA) $(srcdir)/dsched-mca-params.conf $(DESTDIR)$(sysconfdir)/; \
 	    fi; \
 	fi
-	@ for file in $(dsched_install_hook_files); do \
-	    if test -f $(DESTDIR)$(sysconfdir)/$$file; then \
-		echo "******************************* WARNING ************************************"; \
-		echo "*** Not installing new $$file over existing file in:"; \
-		echo "***   $(DESTDIR)$(sysconfdir)/$$file"; \
-		echo "******************************* WARNING ************************************"; \
-	    else \
-		echo installing $$file to $(DESTDIR)$(sysconfdir)/; \
-		$(INSTALL_DATA) $(srcdir)/$$file $(DESTDIR)$(sysconfdir)/; \
-	    fi; \
-	done
-
 
 # Only remove if exactly the same as what in our tree
 # NOTE TO READER: Bourne shell if ... fi evaluates the body if
 #    the return of the evaluated command is 0 (as opposed to non-zero
 #    as used by everyone else)
 uninstall-local:
-	@ p="$(dsched_install_hook_files)"; \
-	for file in $$p; do \
-	  if test -f "$(DESTDIR)$(sysconfdir)/$$file"; then \
-	  	if test -f "$$file"; then d=; else d="$(srcdir)/"; fi; \
-	    if diff "$(DESTDIR)$(sysconfdir)/$$file" "$$d$$file" > /dev/null 2>&1 ; then \
-	      echo "rm -f $(DESTDIR)$(sysconfdir)/$$file" ; \
-	      rm -f "$(DESTDIR)$(sysconfdir)/$$file" ; \
-	    fi ; \
-	  fi ; \
-	done ; \
 	if test "$(dsched_file_from_platform)" = "yes"; then \
 	    if test -f $(DESTDIR)$(sysconfdir)/dsched-mca-params.conf; then \
 		    if diff "$(DESTDIR)$(sysconfdir)/dsched-mca-params.conf" "$(dsched_mca_param_file)" > /dev/null 2>&1 ; then \

@@ -400,7 +400,12 @@ int main(int argc, char *argv[])
 
     // detach from controlling terminal, if so directed
     if (pmix_cmd_line_is_taken(&results, DSCHED_CLI_DAEMONIZE)) {
-        pipe(wait_pipe);
+        ret = pipe(wait_pipe);
+        if (0 > ret) {
+            fprintf(stderr, "Error opening pipe: %s\n", strerror(errno));
+            ret = DSCHED_ERR_SILENT;
+            goto DONE;
+        }
         dsched_globals.parent_fd = wait_pipe[1];
         dsched_daemon_init_callback(NULL, wait_dvm);
         close(wait_pipe[0]);

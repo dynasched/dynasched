@@ -7,9 +7,6 @@
 # $HEADER$
 #
 
-EXTRA_DIST += \
-        base/help-sched-base.txt
-
 headers += \
         base/base.h
 

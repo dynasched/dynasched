@@ -33,7 +33,8 @@ include $(top_srcdir)/Makefile.dsched-rules
 
 noinst_LTLIBRARIES = libdschedutil.la
 
-EXTRA_DIST =
+EXTRA_DIST = \
+	dsched-convert-help.py
 
 headers = \
         dsched_attr.h \

@@ -64,7 +64,7 @@ static void _query(int sd, short args, void *cbdata)
     void *results;
     dsched_node_t *node = NULL;
     int k, rc;
-    size_t m, n, p;
+    size_t m, n;
     uint32_t nodeid;
     dsched_topology_t *topo;
     char *xmlbuffer = NULL;
@@ -191,7 +191,6 @@ static void _query(int sd, short args, void *cbdata)
                 char *str;
 
                 nodelist = PMIx_Info_list_start();
-                p = 0;
                 for (k=0; k < dsched_globals.nodes.size; k++) {
                     node = (dsched_node_t*)pmix_pointer_array_get_item(&dsched_globals.nodes, k);
                     if (NULL == node) {
@@ -213,7 +212,6 @@ static void _query(int sd, short args, void *cbdata)
                     PMIx_Info_list_release(nodeinfolist);
                     /* now add the entry to the main list */
                     rc = PMIx_Info_list_add(nodelist, PMIX_NODE_INFO, &dry, PMIX_DATA_ARRAY);
-                    ++p;
                     PMIX_DATA_ARRAY_DESTRUCT(&dry);
                 }
                 /* add topology info */
