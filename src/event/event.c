@@ -36,11 +36,6 @@ int dsched_event_base_open(void)
         return DSCHED_ERROR;
     }
 
-    /* set the number of priorities */
-    if (1 < dsched_globals.evpri) {
-        event_base_priority_init(dsched_globals.evbase, dsched_globals.evpri);
-    }
-
     initialized = true;
     return DSCHED_SUCCESS;
 }

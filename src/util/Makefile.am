@@ -33,17 +33,22 @@ include $(top_srcdir)/Makefile.dsched-rules
 
 noinst_LTLIBRARIES = libdschedutil.la
 
-EXTRA_DIST =
+EXTRA_DIST = \
+	dsched-convert-help.py
 
 headers = \
         dsched_attr.h \
         dsched_error.h \
-        dsched_cmd_line.h
+        dsched_cmd_line.h \
+        dsched_daemon_init.h \
+        dsched_session_dir.h
 
 sources = \
         dsched_attr.c \
         dsched_error.c \
-        dsched_show_help_content.c
+        dsched_show_help_content.c \
+        dsched_daemon_init.c \
+        dsched_session_dir.c
 
 dsched_show_help_content.c: dsched-convert-help.py
 if DSCHED_PICKY_COMPILERS

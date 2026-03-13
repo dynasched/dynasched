@@ -18,14 +18,14 @@
 #include "dsched_config.h"
 #include "src/util/pmix_output.h"
 
-#include "src/mca/sched/base/base.h"
+#include "src/mca/dsched/base/base.h"
 #include "sched_fifo.h"
 
 /*
  * Public string for version number
  */
-const char *dsched_mca_sched_fifo_component_version_string
-    = "DSCHED FIFO sched MCA component version " DSCHED_VERSION;
+const char *dsched_mca_dsched_fifo_component_version_string
+    = "DSCHED FIFO dsched MCA component version " DSCHED_VERSION;
 
 /*
  * Local functionality
@@ -39,12 +39,12 @@ static int sched_component_query(pmix_mca_base_module_t **module, int *priority)
  * Instantiate the public struct with all of our public information
  * and pointer to our public functions in it
  */
-dsched_sched_base_component_t dsched_mca_sched_fifo_component = {
+dsched_dsched_base_component_t dsched_mca_dsched_fifo_component = {
     /* Handle the general mca_component_t struct containing
      *  meta information about the component sched
      */
     .base_version = {
-        DSCHED_SCHED_BASE_VERSION_1_0_0,
+        DSCHED_DSCHED_BASE_VERSION_1_0_0,
         /* Component name and version */
         .pmix_mca_component_name = "fifo",
         PMIX_MCA_BASE_MAKE_VERSION(component,
@@ -59,17 +59,17 @@ dsched_sched_base_component_t dsched_mca_sched_fifo_component = {
         .pmix_mca_register_component_params = sched_register,
     }
 };
-PMIX_MCA_BASE_COMPONENT_INIT(dsched, sched, fifo)
+PMIX_MCA_BASE_COMPONENT_INIT(dsched, dsched, fifo)
 
 static int my_priority;
 
 static int sched_register(void)
 {
-    pmix_mca_base_component_t *c = &dsched_mca_sched_fifo_component.base_version;
+    pmix_mca_base_component_t *c = &dsched_mca_dsched_fifo_component.base_version;
 
     my_priority = 1000;
     (void) pmix_mca_base_component_var_register(c, "priority",
-                                                "Priority of the sched fifo component",
+                                                "Priority of the dsched fifo component",
                                                 PMIX_MCA_BASE_VAR_TYPE_INT,
                                                 &my_priority);
 

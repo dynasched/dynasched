@@ -1,0 +1,194 @@
+# -*- text -*-
+#
+# Copyright (c) 2025-2026 Nanook Consulting  All rights reserved.
+# $COPYRIGHT$
+#
+# Additional copyrights may follow
+#
+# $HEADER$
+#
+# This is the US/English general help file for DynaSched dsched-info tool.
+#
+[version]
+
+%s (%s) %s
+
+Report bugs to %s
+#
+[usage]
+
+%s (%s) %s
+
+Usage: "%s [OPTION]..."
+
+Run the DynaSched Dynamic Scheduler Platform
+
+The following list of command line options are available. Note that
+more detailed help for any option can be obtained by adding that
+option to the help request as "--help <option>".
+
++------------------------+-----------------------------------------------+
+| Option                 | Description                                   |
+|========================|===============================================|
+| "-h" | "--help"        | This help message                             |
++------------------------+-----------------------------------------------+
+| "-h <arg0>" |          | Help for the specified option                 |
+| "--help <arg0>"        |                                               |
++------------------------+-----------------------------------------------+
+| "-V" | "--version"     | Print version and exit                        |
+|========================|===============================================|
+| "--pmixmca <key>       | Pass context-specific PMIx MCA parameters     |
+| <value>"               | ("key" is the parameter name; "value" is the  |
+|                        | parameter value)                              |
++------------------------+-----------------------------------------------+
+| "--mca <key>  <value>" | Pass context-specific MCA parameters          |
+| "--dmca <key> <value>" | ("key" is the parameter name; "value" is the  |
+|                        | parameter value)                              |
+|========================|===============================================|
+| "--no-ready-msg"       | Do not display a ready message                |
++------------------------+-----------------------------------------------+
+| "--set-sid"            | Direct the scheduler to separate from the     |
+|                        | current session                               |
++------------------------+-----------------------------------------------+
+| "--allow-run-as-       | Allow execution as root (**STRONGLY           |
+| root"                  | DISCOURAGED**)                                |
++------------------------+-----------------------------------------------+
+| "--daemonize"          | Daemonize the scheduler into the background   |
++------------------------+-----------------------------------------------+
+| "--keepalive <arg0>"   | Pipe to monitor - scheduler will terminate    |
+|                        | upon closure                                  |
++------------------------+-----------------------------------------------+
+| "--tmpdir <dir>"       | Set the filesystem root for the session       |
+|                        | directory tree                                |
++------------------------+-----------------------------------------------+
+| "--report-pid <arg>"   | Print out PID on stdout ("-"), stderr ("+"),  |
+|                        | or a file (anything else)                     |
++------------------------+-----------------------------------------------+
+| "--report-uri <arg>"   | Print out URI on stdout ("-"), stderr ("+"),  |
+|                        | or a file (anything else)                     |
++------------------------+-----------------------------------------------+
+| "--controller <arg>"   | The argument indicates the PID, URI, file     |
+|                        | containing the URI, or namespace of the       |
+|                        | of the system controller                      |
++------------------------+-----------------------------------------------+
+
+
+Report bugs to %s
+#
+[pmixmca]
+
+Pass a PMIx MCA parameter
+
+Syntax: "--pmixmca <key> <value>", where "key" is the parameter name
+and "value" is the parameter value.
+#
+[mca]
+
+Pass a DynaSched MCA parameter (synonym for "dmca")
+
+Syntax: "--mca <key> <value>", where "key" is the parameter name
+and "value" is the parameter value.
+#
+[dmca]
+Pass a DynaSched MCA parameter (synonym for "mca")
+
+Syntax: "--dmca <key> <value>", where "key" is the parameter name
+and "value" is the parameter value.
+#
+[no-ready-msg]
+
+Do not print a scheduler "ready" message
+#
+[daemonize]
+
+Daemonize the scheduler into the background
+#
+[set-sid]
+
+Direct the scheduler to separate from the current
+terminal session
+#
+[allow-run-as-root]
+
+Allow execution as root **(STRONGLY DISCOURAGED)**.
+
+Running as root exposes the user to potentially catastrophic file
+system corruption and damage — e.g., if the user accidentally points
+the root of the session directory to a system required point, this
+directory and all underlying elements will be deleted upon job
+completion, thereby rendering the system inoperable.
+
+It is recognized that some environments (e.g., containers) may require
+operation as root, and that the user accepts the risks in those
+scenarios. Accordingly, one can override DynaSched's run-as-root
+protection by providing one of the following:
+
+* The "--allow-run-as-root" command line directive
+
+* Adding **BOTH** of the following environmental parameters:
+
+     * "DSCHED_ALLOW_RUN_AS_ROOT=1"
+
+     * "DSCHED_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+
+Again, we recommend this only be done if absolutely necessary.
+#
+[report-pid]
+
+Printout dsched's PID on stdout ("-"), stderr ("+"), or a file
+(anything else).
+#
+[report-uri]
+
+Printout dsched's URI on stdout ("-"), stderr ("+"), or a file
+(anything else).
+#
+[keepalive]
+
+Pipe for dsched to monitor — job will terminate upon closure
+#
+[tmpdir]
+
+Define the root location for the scheduler's session directory tree
+
+See the "Session directory" HTML documentation for additional details
+about the DynaSched session directory.
+#
+[controller]
+
+A required argument is passed to the "--controller" directive to
+specify how to connect to the system controller
+(e.g., "--controller pid:12345").
+
+Supported options include:
+
+* "pid:<arg>": provides the PID of the target controller. This can
+  be given as either the PID itself (arg = int) or the path to a file
+  that contains the PID (arg = "file:<path>")
+
+* "file:<path>": provides the path to a PMIx rendezvous file that is
+  output by PMIx servers — the file contains all the required
+  information for completing the connection
+
+* "uri:<arg>": specifies the URI of the controller, or the name of
+  the file (specified as "file:filename") that contains that info
+
+* "ns:<arg>": specifies the namespace of the controller
+
+* "system": exclusively find and use the system-level controller
+
+* "system-first": look for a system-level controller, fall back to
+  searching for an available controller the command is authorized
+  to use if a system-level controller is not found
+
+Examples:
+
+   dsched --controller file:dvm_uri.txt
+
+   dsched --controller pid:12345
+
+   dsched --controller uri:file:dvm_uri.txt
+
+   dsched --controller ns:prte-node1-2095
+
+   dsched --controller pid:file:prte_pid.txt

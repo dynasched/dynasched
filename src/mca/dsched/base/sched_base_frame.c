@@ -42,33 +42,33 @@
 #include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 
-#include "src/mca/sched/base/base.h"
+#include "src/mca/dsched/base/base.h"
 #include "src/util/pmix_show_help.h"
 
-#include "src/mca/sched/base/static-components.h"
+#include "src/mca/dsched/base/static-components.h"
 
-dsched_sched_base_module_t dsched_sched = {
+dsched_dsched_base_module_t dsched_sched = {
     .init = NULL,
     .finalize = NULL
 };
 
-static int dsched_sched_base_close(void)
+static int dsched_dsched_base_close(void)
 {
     /* Close all active components */
 
-    return pmix_mca_base_framework_components_close(&dsched_sched_base_framework, NULL);
+    return pmix_mca_base_framework_components_close(&dsched_dsched_base_framework, NULL);
 }
 
 /**
  *  * Function for finding and opening either all MCA components, or the one
  *   * that was specifically requested via a MCA parameter.
  *    */
-static int dsched_sched_base_open(pmix_mca_base_open_flag_t flags)
+static int dsched_dsched_base_open(pmix_mca_base_open_flag_t flags)
 {
     /* Open up all available components */
-    return pmix_mca_base_framework_components_open(&dsched_sched_base_framework, flags);
+    return pmix_mca_base_framework_components_open(&dsched_dsched_base_framework, flags);
 }
 
-PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, sched, "DynaSched scheduler plugins", NULL, dsched_sched_base_open,
-                                dsched_sched_base_close, dsched_mca_sched_base_static_components,
+PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dsched, "DynaSched scheduler plugins", NULL, dsched_dsched_base_open,
+                                dsched_dsched_base_close, dsched_mca_dsched_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);

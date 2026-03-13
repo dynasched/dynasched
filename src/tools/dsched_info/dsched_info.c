@@ -257,17 +257,7 @@ int main(int argc, char *argv[])
     PMIX_CONSTRUCT(&dsched_component_map, pmix_pointer_array_t);
     pmix_pointer_array_init(&dsched_component_map, 256, INT_MAX, 128);
 
-    /* Register all global MCA Params */
-    if (DSCHED_SUCCESS != (ret = dsched_register_params())) {
-        if (DSCHED_ERR_SILENT != ret) {
-            pmix_show_help("help-dsched-runtime", "dsched_init:startup:internal-failure", true,
-                           "dsched register params",
-                           DSCHED_ERROR_NAME(ret), ret);
-        }
-        return 1;
-    }
-
-     /* Register framework/component params */
+    /* Register framework/component params */
     if (PMIX_SUCCESS != (ret = register_framework_params(&dsched_component_map))) {
         if (PMIX_ERR_BAD_PARAM == ret) {
             /* output what we got */

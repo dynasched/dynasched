@@ -52,4 +52,4 @@ dsched_info_LDADD = \
 	$(top_builddir)/src/libdsched.la
 
 EXTRA_DIST = \
-	help-sched-info.txt
+	help-dsched_info.txt

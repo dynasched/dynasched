@@ -19,20 +19,20 @@ sources = \
 # mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la
 # (for static builds).
 
-if MCA_BUILD_dsched_sched_fifo_DSO
+if MCA_BUILD_dsched_dsched_fifo_DSO
 component_noinst =
-component_install = dsched_mca_sched_fifo.la
+component_install = dsched_mca_dsched_fifo.la
 else
-component_noinst = libdsched_mca_sched_fifo.la
+component_noinst = libdsched_mca_dsched_fifo.la
 component_install =
 endif
 
 mcacomponentdir = $(dschedlibdir)
 mcacomponent_LTLIBRARIES = $(component_install)
-dsched_mca_sched_fifo_la_SOURCES = $(sources)
-dsched_mca_sched_fifo_la_LDFLAGS = -module -avoid-version
-dsched_mca_sched_fifo_la_LIBADD = $(top_builddir)/src/libdsched.la
+dsched_mca_dsched_fifo_la_SOURCES = $(sources)
+dsched_mca_dsched_fifo_la_LDFLAGS = -module -avoid-version
+dsched_mca_dsched_fifo_la_LIBADD = $(top_builddir)/src/libdsched.la
 
 noinst_LTLIBRARIES = $(component_noinst)
-libdsched_mca_sched_fifo_la_SOURCES =$(sources)
-libdsched_mca_sched_fifo_la_LDFLAGS = -module -avoid-version
+libdsched_mca_dsched_fifo_la_SOURCES =$(sources)
+libdsched_mca_dsched_fifo_la_LDFLAGS = -module -avoid-version

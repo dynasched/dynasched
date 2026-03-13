@@ -80,7 +80,7 @@ typedef struct {
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_topology_t);
 
 /* Object for tracking allocations */
-typedef struct{
+typedef struct {
     pmix_object_t super;
     int index;
     uint32_t session_id;
@@ -91,24 +91,40 @@ typedef struct{
 } dsched_session_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_session_t);
 
+// threadshift caddy
+typedef struct {
+    pmix_object_t super;
+    dsched_event_t ev;
+    pmix_info_t *info;
+    size_t ninfo;
+    pmix_tool_connection_cbfunc_t toolcbfunc;
+    void *cbdata;
+    pmix_proc_t target;
+    uint32_t uid;
+    uint32_t gid;
+    pid_t pid;
+    bool flag;
+    char *hostname;
+    char *cmdline;
+    bool launcher;
+    bool scheduler;
+    pmix_query_t *queries;
+    size_t nqueries;
+    pmix_info_cbfunc_t infocbfunc;
+} dsched_shift_caddy_t;
+DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_shift_caddy_t);
+
 typedef struct {
     /** Base object so this can be put on a list */
     pmix_list_item_t super;
-    /* index of this node object in global array */
+    /* index of this node object in our global array */
     int32_t index;
     /** String node name */
     char *name;
     char *rawname;  // name originally given in allocation, if different from name
     /** aliases */
     char **aliases;
-    /* daemon on this node */
-    struct dsched_proc_t *daemon;
-    /* track the unassigned cpus */
-    hwloc_cpuset_t available;
-    /* cache the cpuset prior to mapping a job for easy reset */
-    hwloc_cpuset_t jobcache;
-    /** State of this node */
-    dsched_node_state_t state;
+    uint32_t nodeid; // from the runtime
     /** A "soft" limit on the number of slots available on the node.
         This will typically correspond to the number of physical CPUs
         that we have been allocated on this note and would be the
@@ -143,21 +159,40 @@ DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_node_t);
 
 // global variables
 typedef struct {
+    pmix_proc_t myid;
+    pid_t pid;
     dsched_event_base_t *evbase;
-    int evpri;
+    bool evactive;
     bool initialized;
     const char *version_string;
     char *basename;
-    char hostname[DSCHED_MAXHOSTNAMELEN];
+    char *hostname;
+    char **aliases;
     pmix_pointer_array_t nodes;
     pmix_pointer_array_t sessions;
     pmix_pointer_array_t topologies;
-    pmix_pointer_array_t cache;
+    pmix_pointer_array_t requests;
     char *param_files;
     char *override_param_file;
     bool suppress_override_warning;
     int clean_output;
     char *tmpdir;
+    char *prohibited_session_dirs;
+    int exit_status;
+    bool debug;
+    int verbosity;
+    int output;
+    int pmix_output;
+    char *report_uri;
+    pmix_list_t tools;
+    pmix_proc_t syscontroller;
+    bool controller_connected;
+    int parent_fd;
+    bool server_initialized;
+    char *progress_thread_cpus;
+    bool bind_progress_thread_reqd;
+    bool keep_fqdn_hostnames;
+    char *strip_prefixes;
 } dsched_globals_t;
 DSCHED_EXPORT extern dsched_globals_t dsched_globals;
 
@@ -171,9 +206,11 @@ DSCHED_EXPORT int dsched_set_session_object(dsched_session_t *session);
 DSCHED_EXPORT bool dsched_sessions_related(dsched_session_t *session1, dsched_session_t *session2);
 
 /* check to see if two nodes match */
-DSCHED_EXPORT dsched_node_t* dsched_node_match(pmix_list_t *nodes, const char *name);
+DSCHED_EXPORT bool dsched_check_host_is_local(const char *name);
+DSCHED_EXPORT dsched_node_t* dsched_node_match(pmix_list_t *nodes,
+                                               const char *name,
+                                               uint32_t nodeid);
 DSCHED_EXPORT bool dsched_nptr_match(dsched_node_t *n1, dsched_node_t *n2);
-DSCHED_EXPORT bool dsched_quickmatch(dsched_node_t *nd, char *name);
 
 #if DSCHED_PICKY_COMPILERS
 #define DSCHED_HIDE_UNUSED_PARAMS(...)                \
@@ -187,6 +224,13 @@ PMIX_EXPORT void dsched_hide_unused_params(int x, ...);
 #else
 #define DSCHED_HIDE_UNUSED_PARAMS(...)
 #endif
+
+#define DSCHED_UPDATE_EXIT_STATUS(r)            \
+    do {                                        \
+        if (0 == dsched_globals.exit_status) {  \
+            dsched_globals.exit_status = (r);   \
+        }                                       \
+    } while(0)
 
 #define DSCHED_MCA_BASE_VERSION_1_0_0(type, type_major, type_minor, type_release) \
     PMIX_MCA_BASE_VERSION_2_1_0("dsched", DSCHED_MAJOR_VERSION, DSCHED_MINOR_VERSION, \

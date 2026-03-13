@@ -30,8 +30,8 @@
 #    include <sys/wait.h>
 #endif
 
-#include "src/mca/sched/base/base.h"
-#include "src/mca/sched/sched.h"
+#include "src/mca/dsched/base/base.h"
+#include "src/mca/dsched/dsched.h"
 
 #include "sched_fifo.h"
 
@@ -41,7 +41,7 @@ static int finalize(void);
 /******************
  * dvm module
  ******************/
-dsched_sched_base_module_t dsched_sched_fifo_module = {
+dsched_dsched_base_module_t dsched_sched_fifo_module = {
     .init = init,
     .finalize = finalize
 };

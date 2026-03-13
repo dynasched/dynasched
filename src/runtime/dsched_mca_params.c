@@ -48,11 +48,13 @@
 #include "src/runtime/dsched_rte.h"
 
 static bool passed_thru = false;
+static int gen_verbose = -1;
 
 int dsched_register_params(void)
 {
     pmix_output_stream_t lds;
     char *home;
+    bool opened = false;
 
     /* only go thru this once - mpirun calls it twice, which causes
      * any error messages to show up twice
@@ -103,6 +105,54 @@ int dsched_register_params(void)
                                       "overridden value (default: false)",
                                       PMIX_MCA_BASE_VAR_TYPE_BOOL,
                                       &dsched_globals.suppress_override_warning);
+
+    (void) pmix_mca_base_var_register("dsched", "dsched", NULL, "verbose",
+                                      "Debug verbosity for DynaSched",
+                                      PMIX_MCA_BASE_VAR_TYPE_INT,
+                                      &dsched_globals.verbosity);
+    if (0 < dsched_globals.verbosity) {
+        dsched_globals.output = pmix_output_open(NULL);
+        pmix_output_set_verbosity(dsched_globals.output,
+                                  dsched_globals.verbosity);
+        dsched_globals.pmix_output = pmix_output_open(NULL);
+        pmix_output_set_verbosity(dsched_globals.pmix_output,
+                                  dsched_globals.verbosity);
+        opened = true;
+    }
+
+    /* register the backend verbosity */
+    (void) pmix_mca_base_var_register("dsched", "pmix", NULL, "server_verbose",
+                                      "Debug verbosity for backend PMIx server support",
+                                      PMIX_MCA_BASE_VAR_TYPE_INT,
+                                      &gen_verbose);
+    if (0 < gen_verbose && dsched_globals.verbosity < gen_verbose) {
+        if (!opened) {
+            dsched_globals.pmix_output = pmix_output_open(NULL);
+        }
+        pmix_output_set_verbosity(dsched_globals.pmix_output, gen_verbose);
+    }
+
+    (void) pmix_mca_base_var_register("dsched", "dsched", NULL, "progress_thread_cpus",
+                                      "Comma-delimited list of ranges of CPUs to which"
+                                      "the internal DynaSched progress thread(s) are to be bound",
+                                      PMIX_MCA_BASE_VAR_TYPE_STRING,
+                                      &dsched_globals.progress_thread_cpus);
+
+    (void) pmix_mca_base_var_register("dsched", "dsched", NULL, "bind_progress_thread_reqd",
+                                      "Whether binding of internal DynaSched progress threads is required",
+                                      PMIX_MCA_BASE_VAR_TYPE_BOOL,
+                                      &dsched_globals.bind_progress_thread_reqd);
+
+    (void) pmix_mca_base_var_register("dsched", "dsched", NULL, "keep_fqdn_hostnames",
+                                      "Whether or not to keep FQDN hostnames [default: no]",
+                                      PMIX_MCA_BASE_VAR_TYPE_BOOL,
+                                      &dsched_globals.keep_fqdn_hostnames);
+
+    (void) pmix_mca_base_var_register(
+        "dsched", "dsched", NULL, "strip_prefix",
+        "Prefix(es) to match when deciding whether to strip leading characters and zeroes from "
+        "node names returned by daemons",
+        PMIX_MCA_BASE_VAR_TYPE_STRING, &dsched_globals.strip_prefixes);
 
 
     return DSCHED_SUCCESS;

@@ -532,6 +532,14 @@ pmix_status_t dsched_attr_unload(dsched_attribute_t *kv, void **data, pmix_data_
     return PMIX_SUCCESS;
 }
 
+const char *dsched_attr_key_to_str(dsched_attribute_key_t key)
+{
+    switch(key) {
+        default:
+            return "UNKNOWN";
+    }
+}
+
 char* dsched_print_node_flags(struct dsched_node_t *ptr)
 {
     dsched_node_t *p = (dsched_node_t*)ptr;

@@ -20,12 +20,12 @@
 #
 
 # main library setup
-noinst_LTLIBRARIES = libdschedmca_sched.la
-libdschedmca_sched_la_SOURCES =
+noinst_LTLIBRARIES = libdschedmca_dsched.la
+libdschedmca_dsched_la_SOURCES =
 
 # local files
-headers = sched.h
-libdschedmca_sched_la_SOURCES += $(headers)
+headers = dsched.h
+libdschedmca_dsched_la_SOURCES += $(headers)
 
 # pkgdata setup
 EXTRA_DIST =

@@ -71,7 +71,7 @@ BEGIN_C_DECLS
  * @retval DSCHED_SUCCESS The operation completed successfully
  * @retval DSCHED_ERROR   An unspecifed error occurred
  */
-typedef int (*dsched_sched_base_module_init_fn_t)(void);
+typedef int (*dsched_dsched_base_module_init_fn_t)(void);
 
 /**
  * Module finalization function.
@@ -79,25 +79,23 @@ typedef int (*dsched_sched_base_module_init_fn_t)(void);
  * @retval DSCHED_SUCCESS The operation completed successfully
  * @retval DSCHED_ERROR   An unspecifed error occurred
  */
-typedef int (*dsched_sched_base_module_finalize_fn_t)(void);
+typedef int (*dsched_dsched_base_module_finalize_fn_t)(void);
 
 /*
  * Module Structure
  */
-struct dsched_sched_base_module_2_3_0_t {
+typedef struct {
     /** Initialization Function */
-    dsched_sched_base_module_init_fn_t init;
+    dsched_dsched_base_module_init_fn_t init;
     /** Finalization Function */
-    dsched_sched_base_module_finalize_fn_t finalize;
-};
-typedef struct dsched_sched_base_module_2_3_0_t dsched_sched_base_module_2_3_0_t;
-typedef dsched_sched_base_module_2_3_0_t dsched_sched_base_module_t;
-DSCHED_EXPORT extern dsched_sched_base_module_t dsched_sched;
+    dsched_dsched_base_module_finalize_fn_t finalize;
+} dsched_dsched_base_module_t;
+DSCHED_EXPORT extern dsched_dsched_base_module_t dsched_sched;
 
 /*
  * SchEd Component
  */
-struct dsched_sched_base_component_3_0_0_t {
+typedef struct {
     /** MCA base component */
     pmix_mca_base_component_t base_version;
 
@@ -107,14 +105,12 @@ struct dsched_sched_base_component_3_0_0_t {
     int output_handle;
     /** Default Priority */
     int priority;
-};
-typedef struct dsched_sched_base_component_3_0_0_t dsched_sched_base_component_3_0_0_t;
-typedef dsched_sched_base_component_3_0_0_t dsched_sched_base_component_t;
+} dsched_dsched_base_component_t;
 
 /*
  * Macro for use in components that are of type sched
  */
-#define DSCHED_SCHED_BASE_VERSION_1_0_0 DSCHED_MCA_BASE_VERSION_1_0_0("sched", 1, 0, 0)
+#define DSCHED_DSCHED_BASE_VERSION_1_0_0 DSCHED_MCA_BASE_VERSION_1_0_0("dsched", 1, 0, 0)
 
 END_C_DECLS
 
