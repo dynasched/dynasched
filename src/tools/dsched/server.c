@@ -162,6 +162,11 @@ static void lost_connection_hdlr(size_t evhdlr_registration_id, pmix_status_t st
     DSCHED_HIDE_UNUSED_PARAMS(evhdlr_registration_id, status,
                               info, ninfo, results, nresults);
 
+    pmix_output_verbose(2, dsched_globals.pmix_output,
+                        "%s lost connection from tool %s",
+                        PMIX_NAME_PRINT(&dsched_globals.myid),
+                        PMIX_NAME_PRINT(source));
+
     /* scan the list of attached tools to see if this one is there */
     PMIX_LIST_FOREACH(tl, &dsched_globals.tools, pmix_proclist_t)
     {

@@ -42,44 +42,44 @@
 #include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 
-#include "src/mca/dsched/base/base.h"
+#include "src/mca/dlog/base/base.h"
 #include "src/util/pmix_show_help.h"
 
-#include "src/mca/dsched/base/static-components.h"
+#include "src/mca/dlog/base/static-components.h"
 
 /* Instantiate the global vars */
-dsched_sched_globals_t dsched_sched_globals = {
+dsched_log_globals_t dsched_log_globals = {
     .actives = PMIX_LIST_STATIC_INIT,
     .initialized = false,
     .selected = false
 };
 
-dsched_dsched_module_t dsched_sched = {
+dsched_dlog_module_t dlog_log = {
     .init = NULL,
     .finalize = NULL,
-    .schedule = dsched_sched_base_schedule
+    .log = dsched_log_base_log
 };
 
-static pmix_status_t dsched_dsched_base_close(void)
+static pmix_status_t dsched_dlog_base_close(void)
 {
-    dsched_sched_base_active_module_t *active;
+    dsched_log_base_active_module_t *active;
     pmix_status_t rc;
 
-    if (!dsched_sched_globals.initialized) {
+    if (!dsched_log_globals.initialized) {
         return PMIX_SUCCESS;
     }
 
-    PMIX_LIST_FOREACH(active, &dsched_sched_globals.actives, dsched_sched_base_active_module_t) {
+    PMIX_LIST_FOREACH(active, &dsched_log_globals.actives, dsched_log_base_active_module_t) {
         if (NULL != active->module->finalize) {
             active->module->finalize();
         }
     }
-    PMIX_LIST_DESTRUCT(&dsched_sched_globals.actives);
+    PMIX_LIST_DESTRUCT(&dsched_log_globals.actives);
 
     /* Close all active components */
-    rc = pmix_mca_base_framework_components_close(&dsched_dsched_base_framework, NULL);
+    rc = pmix_mca_base_framework_components_close(&dsched_dlog_base_framework, NULL);
     // mark as uninitialized
-    dsched_sched_globals.initialized = false;
+    dsched_log_globals.initialized = false;
     return rc;
 }
 
@@ -87,37 +87,37 @@ static pmix_status_t dsched_dsched_base_close(void)
  *  * Function for finding and opening either all MCA components, or the one
  *   * that was specifically requested via a MCA parameter.
  *    */
-static pmix_status_t dsched_dsched_base_open(pmix_mca_base_open_flag_t flags)
+static pmix_status_t dsched_dlog_base_open(pmix_mca_base_open_flag_t flags)
 {
     // initialize globals
-    PMIX_CONSTRUCT(&dsched_sched_globals.actives, pmix_list_t);
-    dsched_sched_globals.initialized = true;
+    PMIX_CONSTRUCT(&dsched_log_globals.actives, pmix_list_t);
+    dsched_log_globals.initialized = true;
 
     /* Open up all available components */
-    return pmix_mca_base_framework_components_open(&dsched_dsched_base_framework, flags);
+    return pmix_mca_base_framework_components_open(&dsched_dlog_base_framework, flags);
 }
 
-PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dsched, "DynaSched scheduler plugins", NULL, dsched_dsched_base_open,
-                                dsched_dsched_base_close, dsched_mca_dsched_base_static_components,
+PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dlog, "DynaSched log plugins", NULL, dsched_dlog_base_open,
+                                dsched_dlog_base_close, dsched_mca_dlog_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
-int dsched_sched_base_schedule(void)
+pmix_status_t dsched_log_base_log(pmix_list_t *data)
 {
-    int rc;
-    dsched_sched_base_active_module_t *mod;
+    pmix_status_t rc;
+    dsched_log_base_active_module_t *mod;
 
-    PMIX_LIST_FOREACH (mod, &dsched_sched_globals.actives, dsched_sched_base_active_module_t) {
-        if (NULL != mod->module->schedule) {
-            rc = mod->module->schedule();
-            if (DSCHED_SUCCESS != rc) {
+    PMIX_LIST_FOREACH (mod, &dsched_log_globals.actives, dsched_log_base_active_module_t) {
+        if (NULL != mod->module->log) {
+            rc = mod->module->log(data);
+            if (PMIX_SUCCESS != rc) {
                 return rc;
             }
         }
     }
-    return DSCHED_SUCCESS;
+    return PMIX_SUCCESS;
 }
 
 
-PMIX_CLASS_INSTANCE(dsched_sched_base_active_module_t,
+PMIX_CLASS_INSTANCE(dsched_log_base_active_module_t,
                     pmix_list_item_t,
                     NULL, NULL);

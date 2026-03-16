@@ -43,21 +43,19 @@ dsched_dsched_base_component_t dsched_mca_dsched_fifo_component = {
     /* Handle the general mca_component_t struct containing
      *  meta information about the component sched
      */
-    .base_version = {
-        DSCHED_DSCHED_BASE_VERSION_1_0_0,
-        /* Component name and version */
-        .pmix_mca_component_name = "fifo",
-        PMIX_MCA_BASE_MAKE_VERSION(component,
-                                   DSCHED_MAJOR_VERSION,
-                                   DSCHED_MINOR_VERSION,
-                                   DSCHED_RELEASE_VERSION),
+    DSCHED_DSCHED_BASE_VERSION_1_0_0,
+    /* Component name and version */
+    .pmix_mca_component_name = "fifo",
+    PMIX_MCA_BASE_MAKE_VERSION(component,
+                               DSCHED_MAJOR_VERSION,
+                               DSCHED_MINOR_VERSION,
+                               DSCHED_RELEASE_VERSION),
 
-        /* Component open and close functions */
-        .pmix_mca_open_component = sched_open,
-        .pmix_mca_close_component = sched_close,
-        .pmix_mca_query_component = sched_component_query,
-        .pmix_mca_register_component_params = sched_register,
-    }
+    /* Component open and close functions */
+    .pmix_mca_open_component = sched_open,
+    .pmix_mca_close_component = sched_close,
+    .pmix_mca_query_component = sched_component_query,
+    .pmix_mca_register_component_params = sched_register,
 };
 PMIX_MCA_BASE_COMPONENT_INIT(dsched, dsched, fifo)
 
@@ -65,7 +63,7 @@ static int my_priority;
 
 static int sched_register(void)
 {
-    pmix_mca_base_component_t *c = &dsched_mca_dsched_fifo_component.base_version;
+    pmix_mca_base_component_t *c = &dsched_mca_dsched_fifo_component;
 
     my_priority = 1000;
     (void) pmix_mca_base_component_var_register(c, "priority",

@@ -27,81 +27,81 @@
 
 #include <string.h>
 
-#include "src/mca/dsched/base/base.h"
+#include "src/mca/dlog/base/base.h"
 
-pmix_status_t dsched_dsched_base_select(void)
+pmix_status_t dsched_dlog_base_select(void)
 {
     pmix_mca_base_component_list_item_t *cli = NULL;
     pmix_mca_base_component_t *component = NULL;
     pmix_mca_base_module_t *module = NULL;
-    dsched_dsched_module_t *nmodule;
-    dsched_sched_base_active_module_t *newmodule, *mod;
+    dsched_dlog_module_t *nmodule;
+    dsched_log_base_active_module_t *newmodule, *mod;
     int rc, priority;
     bool inserted;
 
-    if (dsched_sched_globals.selected) {
+    if (dsched_log_globals.selected) {
         /* ensure we don't do this twice */
         return PMIX_SUCCESS;
     }
-    dsched_sched_globals.selected = true;
+    dsched_log_globals.selected = true;
 
     /* Query all available components and ask if they have a module */
-    PMIX_LIST_FOREACH (cli, &dsched_dsched_base_framework.framework_components,
+    PMIX_LIST_FOREACH (cli, &dsched_dlog_base_framework.framework_components,
                        pmix_mca_base_component_list_item_t) {
         component = (pmix_mca_base_component_t *) cli->cli_component;
 
-        pmix_output_verbose(5, dsched_dsched_base_framework.framework_output,
-                            "dsched:sched:select: checking available component %s",
+        pmix_output_verbose(5, dsched_dlog_base_framework.framework_output,
+                            "dsched:log:select: checking available component %s",
                             component->pmix_mca_component_name);
 
         /* If there's no query function, skip it */
         if (NULL == component->pmix_mca_query_component) {
             pmix_output_verbose(
-                5, dsched_dsched_base_framework.framework_output,
-                "dsched:sched:select: Skipping component [%s]. It does not implement a query function",
+                5, dsched_dlog_base_framework.framework_output,
+                "dsched:log:select: Skipping component [%s]. It does not implement a query function",
                 component->pmix_mca_component_name);
             continue;
         }
 
         /* Query the component */
-        pmix_output_verbose(5, dsched_dsched_base_framework.framework_output,
-                            "dsched:sched:select: Querying component [%s]",
+        pmix_output_verbose(5, dsched_dlog_base_framework.framework_output,
+                            "dsched:log:select: Querying component [%s]",
                             component->pmix_mca_component_name);
         rc = component->pmix_mca_query_component(&module, &priority);
 
         /* If no module was returned, then skip component */
         if (PMIX_SUCCESS != rc || NULL == module) {
             pmix_output_verbose(
-                5, dsched_dsched_base_framework.framework_output,
-                "dsched:sched:select: Skipping component [%s]. Query failed to return a module",
+                5, dsched_dlog_base_framework.framework_output,
+                "dsched:log:select: Skipping component [%s]. Query failed to return a module",
                 component->pmix_mca_component_name);
             continue;
         }
 
         /* If we got a module, keep it */
-        nmodule = (dsched_dsched_module_t *) module;
+        nmodule = (dsched_dlog_module_t *) module;
         /* let it initialize */
         if (NULL != nmodule->init && PMIX_SUCCESS != nmodule->init()) {
             continue;
         }
         /* add to the list of selected modules */
-        newmodule = PMIX_NEW(dsched_sched_base_active_module_t);
+        newmodule = PMIX_NEW(dsched_log_base_active_module_t);
         newmodule->pri = priority;
         newmodule->module = nmodule;
-        newmodule->component = (dsched_dsched_base_component_t *) cli->cli_component;
+        newmodule->component = (dsched_dlog_base_component_t *) cli->cli_component;
 
         /* maintain priority order */
         inserted = false;
-        PMIX_LIST_FOREACH (mod, &dsched_sched_globals.actives, dsched_sched_base_active_module_t) {
+        PMIX_LIST_FOREACH (mod, &dsched_log_globals.actives, dsched_log_base_active_module_t) {
             if (priority > mod->pri) {
-                pmix_list_insert_pos(&dsched_sched_globals.actives, (pmix_list_item_t *) mod, &newmodule->super);
+                pmix_list_insert_pos(&dsched_log_globals.actives, (pmix_list_item_t *) mod, &newmodule->super);
                 inserted = true;
                 break;
             }
         }
         if (!inserted) {
             /* must be lowest priority - add to end */
-            pmix_list_append(&dsched_sched_globals.actives, &newmodule->super);
+            pmix_list_append(&dsched_log_globals.actives, &newmodule->super);
         }
     }
 

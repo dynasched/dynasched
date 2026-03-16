@@ -35,7 +35,7 @@ BEGIN_C_DECLS
 
 DSCHED_MODULE_EXPORT extern dsched_dsched_base_component_t dsched_mca_dsched_fifo_component;
 
-DSCHED_EXPORT extern dsched_dsched_base_module_t dsched_sched_fifo_module;
+DSCHED_EXPORT extern dsched_dsched_module_t dsched_sched_fifo_module;
 
 END_C_DECLS
 

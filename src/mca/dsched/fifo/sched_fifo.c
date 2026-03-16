@@ -37,13 +37,15 @@
 
 static int init(void);
 static int finalize(void);
+static int fifo_schedule(void);
 
 /******************
  * dvm module
  ******************/
-dsched_dsched_base_module_t dsched_sched_fifo_module = {
+dsched_dsched_module_t dsched_sched_fifo_module = {
     .init = init,
-    .finalize = finalize
+    .finalize = finalize,
+    .schedule = fifo_schedule
 };
 
 /*
@@ -55,6 +57,11 @@ static int init(void)
 }
 
 static int finalize(void)
+{
+    return DSCHED_SUCCESS;
+}
+
+static int fifo_schedule(void)
 {
     return DSCHED_SUCCESS;
 }
