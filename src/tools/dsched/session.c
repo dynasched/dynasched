@@ -127,23 +127,22 @@ static void request_init(int fd, short args, void *cbdata)
             notwaiting = true;
         }
     }
-    if (notwaiting) {
-        // we callback with the current status so the requestor
-        // can be told if we are accepting the request
-        if (NULL != req->cbfunc) {
-            req->cbfunc(rcerr, NULL, 0, req->cbdata, NULL, NULL);
+
+    if (PMIX_SUCCESS == rcerr) {
+        // add request to the queue
+        req->index = pmix_pointer_array_add(&dsched_globals.requests, req);
+
+        // if they are waiting, we don't reply at this time - we reply
+        // when the allocation is actually made
+
+        if (notwaiting) {
+            // need to reply to requestor so they don't hang
+            if (NULL != req->cbfunc) {
+                req->cbfunc(rcerr, NULL, 0, req->cbdata, NULL, NULL);
+            }
         }
-        if (PMIX_SUCCESS == rcerr) {
-            // add request to the queue
-            req->index = pmix_pointer_array_add(&dsched_globals.requests, req);
-        } else {
-            PMIX_RELEASE(req);
-        }
-    } else if (PMIX_SUCCESS == rcerr) {
-            // add request to the queue
-            req->index = pmix_pointer_array_add(&dsched_globals.requests, req);
     } else {
-        // need to reply to requestor so they don't hang
+        // inform them of the error, regardless of waiting or not
         if (NULL != req->cbfunc) {
             req->cbfunc(rcerr, NULL, 0, req->cbdata, NULL, NULL);
         }

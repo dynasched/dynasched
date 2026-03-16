@@ -47,8 +47,8 @@ extern pmix_status_t dsched_query_fn(pmix_proc_t *proct,
                                      pmix_query_t *queries, size_t nqueries,
                                      pmix_info_cbfunc_t cbfunc, void *cbdata);
 
-extern void dsched_tool_connected_fn(pmix_info_t *info, size_t ninfo,
-                                    pmix_tool_connection_cbfunc_t cbfunc, void *cbdata);
+extern pmix_status_t dsched_tool_connected_fn(pmix_info_t *info, size_t ninfo,
+                                              pmix_tool_connection_cbfunc_t cbfunc, void *cbdata);
 
 extern pmix_status_t dsched_alloc_fn(const pmix_proc_t *client,
                                      pmix_alloc_directive_t directive,
