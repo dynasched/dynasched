@@ -40,8 +40,8 @@
  *
  */
 
-#ifndef DSCHED_MCA_SCHED_H
-#define DSCHED_MCA_SCHED_H
+#ifndef DSCHED_MCA_LOG_H
+#define DSCHED_MCA_LOG_H
 
 /*
  * includes
@@ -71,7 +71,7 @@ BEGIN_C_DECLS
  * @retval DSCHED_SUCCESS The operation completed successfully
  * @retval DSCHED_ERROR   An unspecifed error occurred
  */
-typedef int (*dsched_dsched_base_module_init_fn_t)(void);
+typedef int (*dsched_dlog_base_module_init_fn_t)(void);
 
 /**
  * Module finalization function.
@@ -79,31 +79,33 @@ typedef int (*dsched_dsched_base_module_init_fn_t)(void);
  * @retval DSCHED_SUCCESS The operation completed successfully
  * @retval DSCHED_ERROR   An unspecifed error occurred
  */
-typedef int (*dsched_dsched_base_module_finalize_fn_t)(void);
+typedef void (*dsched_dlog_base_module_finalize_fn_t)(void);
 
-/* compute a schedule */
-typedef int (*dsched_dsched_base_module_schedule_fn_t)(void);
+// log operation
+typedef pmix_status_t (*dsched_dlog_base_module_log_fn_t)(pmix_list_t *data);
 
 /*
  * Module Structure
  */
 typedef struct {
     /** Initialization Function */
-    dsched_dsched_base_module_init_fn_t init;
+    dsched_dlog_base_module_init_fn_t init;
     /** Finalization Function */
-    dsched_dsched_base_module_finalize_fn_t finalize;
-    // compute schedule
-    dsched_dsched_base_module_schedule_fn_t schedule;
-} dsched_dsched_module_t;
-DSCHED_EXPORT extern dsched_dsched_module_t dsched_sched;
-
-// component definition
-typedef pmix_mca_base_component_t dsched_dsched_base_component_t;
+    dsched_dlog_base_module_finalize_fn_t finalize;
+    // log operation
+    dsched_dlog_base_module_log_fn_t log;
+} dsched_dlog_module_t;
+DSCHED_EXPORT extern dsched_dlog_module_t dsched_log;
 
 /*
- * Macro for use in components that are of type sched
+ * Log Component
  */
-#define DSCHED_DSCHED_BASE_VERSION_1_0_0 DSCHED_MCA_BASE_VERSION_1_0_0("dsched", 1, 0, 0)
+typedef pmix_mca_base_component_t dsched_dlog_base_component_t;
+
+/*
+ * Macro for use in components that are of type log
+ */
+#define DSCHED_DLOG_BASE_VERSION_1_0_0 DSCHED_MCA_BASE_VERSION_1_0_0("dlog", 1, 0, 0)
 
 END_C_DECLS
 

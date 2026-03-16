@@ -1,0 +1,15 @@
+#
+# Copyright (c) 2026      Nanook Consulting  All rights reserved.
+# $COPYRIGHT$
+#
+# Additional copyrights may follow
+#
+# $HEADER$
+#
+
+headers += \
+        base/base.h
+
+libdschedmca_dmetric_la_SOURCES += \
+        base/metric_base_select.c \
+        base/metric_base_frame.c

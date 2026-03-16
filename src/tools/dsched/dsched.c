@@ -324,6 +324,22 @@ int main(int argc, char *argv[])
         allow_run_as_root(&results); // will exit us if not allowed
     }
 
+    /* pre-load any default mca param files */
+    dsched_preload_default_mca_params();
+
+    // process/promote MCA params on cmd line
+    dsched_process_cli_mca_params(&results);
+
+    /* Register all global MCA Params */
+    if (DSCHED_SUCCESS != (ret = dsched_register_params())) {
+        if (DSCHED_ERR_SILENT != ret) {
+            pmix_show_help("help-dsched-runtime", "dsched_init:startup:internal-failure", true,
+                           "dsched register params",
+                           DSCHED_ERROR_NAME(ret), ret);
+        }
+        return ret;
+    }
+
     /* we may have been passed a PMIx nspace to use */
     if (NULL != (evar = getenv("PMIX_SERVER_NSPACE"))) {
         PMIX_LOAD_NSPACE(dsched_globals.myid.nspace, evar);
@@ -375,6 +391,9 @@ int main(int argc, char *argv[])
     /* initialize the requests cache */
     PMIX_CONSTRUCT(&dsched_globals.requests, pmix_pointer_array_t);
     pmix_pointer_array_init(&dsched_globals.requests, 1, INT_MAX, 1);
+
+    // initialize the list of connected tools
+    PMIX_CONSTRUCT(&dsched_globals.tools, pmix_list_t);
 
     /* if we were given a keepalive pipe, set up to monitor it now */
     opt = pmix_cmd_line_get_param(&results, DSCHED_CLI_KEEPALIVE);

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004-2010 The Trustees of Indiana University and Indiana
- *                         University Research and Technology
+ *                         University Research and Technometay
  *                         Corporation.  All rights reserved.
  * Copyright (c) 2004-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
@@ -22,8 +22,8 @@
 /** @file:
  */
 
-#ifndef DSCHED_MCA_SCHED_BASE_H
-#define DSCHED_MCA_SCHED_BASE_H
+#ifndef DSCHED_MCA_META_BASE_H
+#define DSCHED_MCA_META_BASE_H
 
 /*
  * includes
@@ -31,16 +31,16 @@
 #include "dsched_config.h"
 #include "dsched_constants.h"
 
-#include "src/mca/dsched/dsched.h"
+#include "src/mca/dmeta/dmeta.h"
 
 BEGIN_C_DECLS
 
 /*
  * MCA Framework
  */
-DSCHED_EXPORT extern pmix_mca_base_framework_t dsched_dsched_base_framework;
+DSCHED_EXPORT extern pmix_mca_base_framework_t dsched_dmeta_base_framework;
 /* select a component */
-DSCHED_EXPORT pmix_status_t dsched_dsched_base_select(void);
+DSCHED_EXPORT pmix_status_t dsched_dmeta_base_select(void);
 
 /**
  * Track an active component / module
@@ -48,23 +48,23 @@ DSCHED_EXPORT pmix_status_t dsched_dsched_base_select(void);
 typedef struct {
     pmix_list_item_t super;
     int pri;
-    dsched_dsched_module_t *module;
-    dsched_dsched_base_component_t *component;
-} dsched_sched_base_active_module_t;
-PMIX_CLASS_DECLARATION(dsched_sched_base_active_module_t);
+    dsched_dmeta_module_t *module;
+    dsched_dmeta_base_component_t *component;
+} dsched_meta_base_active_module_t;
+PMIX_CLASS_DECLARATION(dsched_meta_base_active_module_t);
 
 /* framework globals */
 typedef struct {
     pmix_list_t actives;
     bool initialized;
     bool selected;
-} dsched_sched_globals_t;
+} dsched_meta_globals_t;
 
-DSCHED_EXPORT extern dsched_dsched_module_t dsched_dsched;
+DSCHED_EXPORT extern dsched_dmeta_module_t dsched_dmeta;
 
-DSCHED_EXPORT extern dsched_sched_globals_t dsched_sched_globals;
+DSCHED_EXPORT extern dsched_meta_globals_t dsched_meta_globals;
 
-DSCHED_EXPORT int dsched_sched_base_schedule(void);
+DSCHED_EXPORT pmix_status_t dsched_meta_base_schedule(pmix_list_t *data);
 
 END_C_DECLS
 

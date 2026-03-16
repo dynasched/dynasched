@@ -183,9 +183,9 @@ static void _toolconn(int sd, short args, void *cbdata)
     PMIX_RELEASE(cd);
 }
 
-void dsched_tool_connected_fn(pmix_info_t *info, size_t ninfo,
-                              pmix_tool_connection_cbfunc_t cbfunc,
-                              void *cbdata)
+pmix_status_t dsched_tool_connected_fn(pmix_info_t *info, size_t ninfo,
+                                       pmix_tool_connection_cbfunc_t cbfunc,
+                                       void *cbdata)
 {
     dsched_shift_caddy_t *cd;
 
@@ -204,4 +204,6 @@ void dsched_tool_connected_fn(pmix_info_t *info, size_t ninfo,
     dsched_event_set(dsched_globals.evbase, &(cd->ev), -1, DSCHED_EV_WRITE, _toolconn, cd);
     PMIX_POST_OBJECT(cd);
     dsched_event_active(&(cd->ev), DSCHED_EV_WRITE, 1);
+
+    return PMIX_SUCCESS;
 }
