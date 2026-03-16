@@ -49,6 +49,10 @@ DSCHED_EXPORT int dsched_init_util(void);
 
 DSCHED_EXPORT int dsched_register_params(void);
 
+DSCHED_EXPORT int dsched_preload_default_mca_params(void);
+
+DSCHED_EXPORT int dsched_process_cli_mca_params(pmix_cli_result_t *cli);
+
 END_C_DECLS
 
 #endif /* DSCHED_RTE_H */

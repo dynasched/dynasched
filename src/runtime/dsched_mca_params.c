@@ -37,8 +37,13 @@
 
 #include "src/mca/base/pmix_mca_base_var.h"
 #include "src/mca/dinstalldirs/dinstalldirs.h"
+#include "src/mca/base/pmix_mca_base_var.h"
+#include "src/mca/base/pmix_mca_base_vari.h"
+#include "src/mca/pmdl/base/base.h"
 #include "src/util/pmix_argv.h"
+#include "src/util/pmix_cmd_line.h"
 #include "src/util/pmix_output.h"
+#include "src/util/pmix_os_path.h"
 #include "src/util/pmix_path.h"
 #include "src/util/pmix_printf.h"
 #include "src/util/pmix_environ.h"
@@ -46,6 +51,7 @@
 
 #include "src/include/dsched_globals.h"
 #include "src/runtime/dsched_rte.h"
+#include "src/util/dsched_cmd_line.h"
 
 static bool passed_thru = false;
 static int gen_verbose = -1;
@@ -155,5 +161,207 @@ int dsched_register_params(void)
         PMIX_MCA_BASE_VAR_TYPE_STRING, &dsched_globals.strip_prefixes);
 
 
+    return DSCHED_SUCCESS;
+}
+
+int dsched_preload_default_mca_params(void)
+{
+    char *file, *home, *tmp, **paths = NULL;
+    pmix_list_t params, params2, pfinal;
+    pmix_mca_base_var_file_value_t *fv, *fv2, *fvnext, *fvnext2;
+    bool match;
+    int i, rc;
+
+    home = (char*)pmix_home_directory(-1);
+    PMIX_CONSTRUCT(&params, pmix_list_t);
+    PMIX_CONSTRUCT(&params2, pmix_list_t);
+    PMIX_CONSTRUCT(&pfinal, pmix_list_t);
+
+    if (NULL == dsched_globals.param_files) {
+        /* start with the system-level defaults */
+        file = pmix_os_path(false, dsched_dinstall_dirs.sysconfdir, "dsched-mca-params.conf", NULL);
+        rc = pmix_mca_base_parse_paramfile(file, &params);
+        free(file);
+        if (PMIX_SUCCESS != rc && PMIX_ERR_NOT_FOUND != rc) {
+            // it is okay if the file isn't found
+            return rc;
+        }
+        /* now get the user-level defaults */
+        file = pmix_os_path(false, home, ".dsched", "mca-params.conf", NULL);
+        rc = pmix_mca_base_parse_paramfile(file, &params2);
+        free(file);
+        if (PMIX_SUCCESS != rc && PMIX_ERR_NOT_FOUND != rc) {
+            // it is okay if the file isn't found
+            return rc;
+        }
+    } else {
+        // split the string on commas
+        paths = PMIx_Argv_split(dsched_globals.param_files, ',');
+        // process each path
+        for (i=0; NULL != paths[i]; i++) {
+            rc = pmix_mca_base_parse_paramfile(paths[i], &params);
+            if (PMIX_SUCCESS != rc && PMIX_ERR_NOT_FOUND != rc) {
+                // it is okay if the file isn't found
+                PMIx_Argv_free(paths);
+                return rc;
+            }
+        }
+        PMIx_Argv_free(paths);
+    }
+
+    /* cross-check the lists, keeping the params2 entries over any
+     * matching params entries as they overwrite the system ones */
+    PMIX_LIST_FOREACH_SAFE(fv, fvnext, &params, pmix_mca_base_var_file_value_t) {
+        match = false;
+        PMIX_LIST_FOREACH_SAFE(fv2, fvnext2, &params2, pmix_mca_base_var_file_value_t) {
+            /* do we have a match? */
+            if (0 == strcmp(fv->mbvfv_var, fv2->mbvfv_var)) {
+                /* transfer the user-level default to the final list */
+                pmix_list_remove_item(&params2, &fv2->super);
+                pmix_list_append(&pfinal, &fv2->super);
+                /* remove and release the system-level duplicate */
+                pmix_list_remove_item(&params, &fv->super);
+                PMIX_RELEASE(fv);
+                match = true;
+                break;
+            }
+        }
+        if (!match) {
+            /* transfer the system-level default to the final list */
+            pmix_list_remove_item(&params, &fv->super);
+            pmix_list_append(&pfinal, &fv->super);
+        }
+    }
+    /* transfer any remaining use-level defaults to the final list
+     * as they had no matches */
+    while (NULL != (fv2 = (pmix_mca_base_var_file_value_t*)pmix_list_remove_first(&params2))) {
+        pmix_list_append(&pfinal, &fv2->super);
+    }
+    PMIX_LIST_DESTRUCT(&params);
+    PMIX_LIST_DESTRUCT(&params2);
+
+    // process any override params
+    PMIX_CONSTRUCT(&params, pmix_list_t);
+    if (NULL != dsched_globals.override_param_file) {
+        // process the file
+        rc = pmix_mca_base_parse_paramfile(dsched_globals.override_param_file, &params);
+        if (PMIX_SUCCESS != rc && PMIX_ERR_NOT_FOUND != rc) {
+            // it is okay if the file isn't found
+            PMIX_LIST_DESTRUCT(&params);
+            PMIX_LIST_DESTRUCT(&pfinal);
+            return rc;
+        }
+        if (0 < pmix_list_get_size(&params)) {
+            // check the params against any given
+            PMIX_LIST_FOREACH(fv, &pfinal, pmix_mca_base_var_file_value_t) {
+                PMIX_LIST_FOREACH(fv2, &params, pmix_mca_base_var_file_value_t) {
+                    if (0 == strcmp(fv->mbvfv_var, fv2->mbvfv_var)) {
+                        if (!dsched_globals.suppress_override_warning) {
+                            pmix_show_help("help-pmix-mca-var.txt", "overridden-param-set", true, fv->mbvfv_var);
+                        }
+                        free(fv->mbvfv_var);
+                        fv->mbvfv_var = strdup(fv2->mbvfv_var);
+                        free(fv->mbvfv_value);
+                        fv->mbvfv_value = strdup(fv2->mbvfv_value);
+                        break;
+                    }
+                }
+            }
+            // now overwrite any envars
+            PMIX_LIST_FOREACH(fv, &params, pmix_mca_base_var_file_value_t) {
+                if (pmix_pmdl_base_check_pmix_param(fv->mbvfv_var)) {
+                    pmix_asprintf(&tmp, "PMIX_MCA_%s", fv->mbvfv_var);
+                    if (!dsched_globals.suppress_override_warning && NULL != getenv(tmp)) {
+                        pmix_show_help("help-pmix-mca-var.txt", "overridden-param-set", true, tmp);
+                    }
+                    // set it, and overwrite if they already
+                    // have a value in our environment
+                    setenv(tmp, fv->mbvfv_value, true);
+                    free(tmp);
+                } else {
+                    pmix_asprintf(&tmp, "DSCHED_MCA_%s", fv->mbvfv_var);
+                    if (!dsched_globals.suppress_override_warning && NULL != getenv(tmp)) {
+                        pmix_show_help("help-pmix-mca-var.txt", "overridden-param-set", true, tmp);
+                    }
+                    // set it, and overwrite if they already
+                    // have a value in our environment
+                    setenv(tmp, fv->mbvfv_value, true);
+                    free(tmp);
+                }
+            }
+        }
+        PMIX_LIST_DESTRUCT(&params);
+    }
+
+    /* now process the final list - but do not overwrite if the
+     * user already has the param in our environment as their
+     * environment settings override all defaults */
+    PMIX_LIST_FOREACH(fv, &pfinal, pmix_mca_base_var_file_value_t) {
+        if (pmix_pmdl_base_check_pmix_param(fv->mbvfv_var)) {
+            pmix_asprintf(&tmp, "PMIX_MCA_%s", fv->mbvfv_var);
+            // set it, but don't overwrite if they already
+            // have a value in our environment
+            setenv(tmp, fv->mbvfv_value, false);
+            free(tmp);
+        } else {
+            pmix_asprintf(&tmp, "DSCHED_MCA_%s", fv->mbvfv_var);
+            // set it, but don't overwrite if they already
+            // have a value in our environment
+            setenv(tmp, fv->mbvfv_value, false);
+            free(tmp);
+        }
+    }
+
+    PMIX_LIST_DESTRUCT(&pfinal);
+    return DSCHED_SUCCESS;
+}
+
+int dsched_process_cli_mca_params(pmix_cli_result_t *cli)
+{
+    pmix_cli_item_t *opt;
+    int n;
+    char *tmp, *ptr;
+
+    opt = pmix_cmd_line_get_param(cli, DSCHED_CLI_PMIXMCA);
+    if (NULL != opt) {
+        for (n=0; NULL != opt->values[n]; n++) {
+            // entry is param=value
+            ptr = strchr(opt->values[n], '=');
+            *ptr = '\0';
+            ++ptr;
+            pmix_asprintf(&tmp, "PMIX_MCA_%s", opt->values[n]);
+            // overwrite anything in the environ as cmd line is final
+            setenv(tmp, ptr, true);
+            free(tmp);
+        }
+    }
+
+    opt = pmix_cmd_line_get_param(cli, DSCHED_CLI_MCA);
+    if (NULL != opt) {
+        for (n=0; NULL != opt->values[n]; n++) {
+            // entry is param=value
+            ptr = strchr(opt->values[n], '=');
+            *ptr = '\0';
+            ++ptr;
+            pmix_asprintf(&tmp, "DSCHED_MCA_%s", opt->values[n]);
+            // overwrite anything in the environ as cmd line is final
+            setenv(tmp, ptr, true);
+            free(tmp);
+        }
+    }
+
+    opt = pmix_cmd_line_get_param(cli, DSCHED_CLI_DMCA);
+    if (NULL != opt) {
+        for (n=0; NULL != opt->values[n]; n++) {
+            // entry is param=value
+            ptr = strchr(opt->values[n], '=');
+            *ptr = '\0';
+            ++ptr;
+            pmix_asprintf(&tmp, "DSCHED_MCA_%s", opt->values[n]);
+            // overwrite anything in the environ as cmd line is final
+            setenv(tmp, ptr, true);
+            free(tmp);
+        }
+    }
     return DSCHED_SUCCESS;
 }

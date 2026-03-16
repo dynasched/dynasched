@@ -70,7 +70,7 @@
 
 static pmix_server_module_t dsched_server = {
     .query = dsched_query_fn,
-    .tool_connected = dsched_tool_connected_fn,
+    .tool_connected2 = dsched_tool_connected_fn,
     .allocate = dsched_alloc_fn,
     .session_control = dsched_session_ctrl_fn
 };
