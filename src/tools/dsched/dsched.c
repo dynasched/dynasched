@@ -20,6 +20,10 @@
 
 #include "src/include/dsched_constants.h"
 #include "src/include/dsched_globals.h"
+#include "src/mca/dmeta/base/base.h"
+#include "src/mca/dmetric/base/base.h"
+#include "src/mca/dsched/base/base.h"
+
 #include "src/runtime/dsched_rte.h"
 #include "src/util/dsched_cmd_line.h"
 #include "src/util/dsched_daemon_init.h"
@@ -395,6 +399,44 @@ int main(int argc, char *argv[])
     // initialize the list of connected tools
     PMIX_CONSTRUCT(&dsched_globals.tools, pmix_list_t);
 
+    // setup the frameworks
+    ret = pmix_mca_base_framework_open(&dsched_dmeta_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
+        PMIX_ERROR_LOG(ret);
+        error = "open dmeta framework";
+        goto DONE;
+    }
+    ret = dsched_dmeta_base_select();
+    if (PMIX_SUCCESS != ret) {
+        error = "dmeta_base_select";
+        goto DONE;
+    }
+    ret = pmix_mca_base_framework_open(&dsched_dsched_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
+        PMIX_ERROR_LOG(ret);
+        error = "open dsched framework";
+        goto DONE;
+    }
+    ret = dsched_dsched_base_select();
+    if (PMIX_SUCCESS != ret) {
+        error = "dsched_base_select";
+        goto DONE;
+    }
+    ret = pmix_mca_base_framework_open(&dsched_dmetric_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
+        PMIX_ERROR_LOG(ret);
+        error = "open dmetric framework";
+        goto DONE;
+    }
+    ret = dsched_dmetric_base_select();
+    if (PMIX_SUCCESS != ret) {
+        error = "dmetric_base_select";
+        goto DONE;
+    }
+
     /* if we were given a keepalive pipe, set up to monitor it now */
     opt = pmix_cmd_line_get_param(&results, DSCHED_CLI_KEEPALIVE);
     if (NULL != opt) {
@@ -516,6 +558,15 @@ int main(int argc, char *argv[])
         PMIX_WAIT_THREAD(&xfer.lock);
         PMIX_INFO_DESTRUCT(&info);
         PMIX_DESTRUCT_LOCK(&xfer.lock);
+    }
+
+    // put some nodes in the system
+    dsched_node_t *node;
+    for (int n=0; n < 5; n++) {
+        node = PMIX_NEW(dsched_node_t);
+        pmix_asprintf(&node->name, "foo%02d", n);
+        node->slots = n + 3;
+        pmix_pointer_array_add(&dsched_globals.nodes, node);
     }
 
     /* output a message indicating we are alive, our name, and our pid */

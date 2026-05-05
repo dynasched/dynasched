@@ -42,6 +42,7 @@
 #include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 
+#include "src/include/dsched_globals.h"
 #include "src/mca/dmeta/base/base.h"
 #include "src/util/pmix_show_help.h"
 
@@ -52,12 +53,6 @@ dsched_meta_globals_t dsched_meta_globals = {
     .actives = PMIX_LIST_STATIC_INIT,
     .initialized = false,
     .selected = false
-};
-
-dsched_dmeta_module_t dmeta_meta = {
-    .init = NULL,
-    .finalize = NULL,
-    .schedule = dsched_meta_base_schedule
 };
 
 static pmix_status_t dsched_dmeta_base_close(void)
@@ -101,20 +96,71 @@ PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dmeta, "DynaSched meta plugins", NULL, d
                                 dsched_dmeta_base_close, dsched_mca_dmeta_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
-pmix_status_t dsched_meta_base_schedule(pmix_list_t *data)
+void dsched_meta_base_cbfunc(int sd, short args, void *cbdata)
 {
+    dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)cbdata;
+    dsched_meta_t *mt = cd->mt;
+    dsched_req_t *req = mt->req;
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
+
+    mt->nresponded++;
+
+    if (mt->nresponded == mt->nactive) {
+        // all the metaschedulers have completed
+        if (NULL != req) {
+            // reply to requestor
+            if (NULL != req->cbfunc) {
+                req->cbfunc(req->status, NULL, 0, req->cbdata, NULL, NULL);
+            }
+            pmix_pointer_array_set_item(&dsched_globals.requests, req->index, NULL);
+            PMIX_RELEASE(req);
+        }
+        PMIX_RELEASE(mt);
+    }
+    PMIX_RELEASE(cd);
+}
+
+void dsched_meta_base_schedule(int sd, short args, void *cbdata)
+{
+    dsched_req_t *req = (dsched_req_t*)cbdata;
     pmix_status_t rc;
+    dsched_meta_t *mt;
     dsched_meta_base_active_module_t *mod;
+    bool assign = true;
+    dsched_shift_caddy_t *cd;
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
+
+    // NOTE: a NULL req indicates that this was triggered
+    // by completion of an executing job (either the job
+    // completed, or the session timed out). Schedulers
+    // shall indicate which pending req is being allocated.
+    // A non-NULL req indicates that a new request has
+    // arrived and needs to be added to the scheduler.
+    mt = PMIX_NEW(dsched_meta_t);
+    if (NULL != req) {
+        PMIX_RETAIN(req);
+    }
+    mt->req = req;
+    mt->nactive = pmix_list_get_size(&dsched_meta_globals.actives);
 
     PMIX_LIST_FOREACH (mod, &dsched_meta_globals.actives, dsched_meta_base_active_module_t) {
         if (NULL != mod->module->schedule) {
-            rc = mod->module->schedule(data);
-            if (PMIX_SUCCESS != rc) {
-                return rc;
+            rc = mod->module->schedule(mt, assign);
+            if (PMIX_SUCCESS != rc &&
+                PMIX_OPERATION_IN_PROGRESS != rc) {
+                mt->nresponded++;
+            } else {
+                assign = false;
             }
         }
     }
-    return PMIX_SUCCESS;
+
+    if (mt->nactive == mt->nresponded) {
+        req->status = PMIX_ERR_NOT_AVAILABLE;
+        cd = PMIX_NEW(dsched_shift_caddy_t);
+        cd->mt = mt;
+        DSCHED_THREADSHIFT(cd, dsched_globals.evbase, dsched_meta_base_cbfunc);
+    }
 }
 
 

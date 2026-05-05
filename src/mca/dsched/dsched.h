@@ -82,7 +82,8 @@ typedef int (*dsched_dsched_base_module_init_fn_t)(void);
 typedef int (*dsched_dsched_base_module_finalize_fn_t)(void);
 
 /* compute a schedule */
-typedef int (*dsched_dsched_base_module_schedule_fn_t)(void);
+typedef pmix_status_t (*dsched_dsched_base_module_schedule_fn_t)(dsched_shift_caddy_t *scd,
+                                                                 int order);
 
 /*
  * Module Structure

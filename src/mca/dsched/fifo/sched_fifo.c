@@ -30,6 +30,7 @@
 #    include <sys/wait.h>
 #endif
 
+#include "src/runtime/dsched_progress_threads.h"
 #include "src/mca/dsched/base/base.h"
 #include "src/mca/dsched/dsched.h"
 
@@ -37,7 +38,8 @@
 
 static int init(void);
 static int finalize(void);
-static int fifo_schedule(void);
+static pmix_status_t fifo_schedule(dsched_shift_caddy_t *scd,
+                                   int order);
 
 /******************
  * dvm module
@@ -48,20 +50,90 @@ dsched_dsched_module_t dsched_sched_fifo_module = {
     .schedule = fifo_schedule
 };
 
+// local variables
+static pmix_list_t reqs;
+dsched_event_base_t *evbase;
+
 /*
  * Local functions
  */
 static int init(void)
 {
+    PMIX_CONSTRUCT(&reqs, pmix_list_t);
+    // setup our component progress thread
+    evbase = dsched_progress_thread_init("dsched-fifo");
+
     return DSCHED_SUCCESS;
 }
 
 static int finalize(void)
 {
+    PMIX_LIST_DESTRUCT(&reqs);
+    dsched_progress_thread_finalize("dsched-fifo");
     return DSCHED_SUCCESS;
 }
 
-static int fifo_schedule(void)
+static void sched(int sd, short args, void *cbdata)
 {
-    return DSCHED_SUCCESS;
+    dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)cbdata;
+    dsched_req_item_t *rqitm;
+    int n, cnt=0;
+    dsched_node_t *node;
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
+
+    // if the incoming req is not NULL, then put it on our internal
+    // list so the req is kept in order
+    if (NULL != cd->req) {
+        rqitm = PMIX_NEW(dsched_req_item_t);
+        PMIX_RETAIN(cd->req);
+        rqitm->req = cd->req;
+        pmix_list_append(&reqs, &rqitm->super);
+    }
+
+    // get the first req on our list
+    rqitm = (dsched_req_item_t*)pmix_list_get_first(&reqs);
+    if (NULL == rqitm) {
+        // no requests pending
+        DSCHED_THREADSHIFT(cd, dsched_globals.evbase, dsched_sched_base_cbfunc);
+        return;
+    }
+
+    // check to see if enough resources are available to allocate it
+    if (rqitm->req->num_nodes < dsched_globals.avail.nnodes) {
+        // we have enough!
+        cd->alloc = PMIX_NEW(dsched_alloc_t);
+        cd->alloc->scheduler = strdup("fifo");
+        cd->alloc->pri = cd->order;
+        cd->req = rqitm->req;
+        // this needs to be done in the main thread!
+        for (n=0; n < dsched_globals.nodes.size; n++) {
+            node = (dsched_node_t*)pmix_pointer_array_get_item(&dsched_globals.nodes, n);
+            if (NULL == node) {
+                continue;
+            }
+            pmix_pointer_array_add(&cd->alloc->allocation, node);
+            ++cnt;
+            if (cnt == rqitm->req->num_nodes) {
+                break;
+            }
+        }
+    }
+
+    // return result to the base frame
+    DSCHED_THREADSHIFT(cd, dsched_globals.evbase, dsched_sched_base_cbfunc);
+}
+
+static pmix_status_t fifo_schedule(dsched_shift_caddy_t *scd, int order)
+{
+    dsched_shift_caddy_t *cd;
+
+    // do not block the meta-level processing as other
+    // components may be attempting to operate in parallel
+    cd = PMIX_NEW(dsched_shift_caddy_t);
+    cd->order = order;
+    cd->req = scd->mt->req;
+    cd->trk = scd->trk;
+    DSCHED_THREADSHIFT(cd, evbase, sched);
+
+    return PMIX_OPERATION_IN_PROGRESS;
 }

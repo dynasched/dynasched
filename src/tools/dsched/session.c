@@ -8,15 +8,17 @@
  */
 
 #include "dsched_config.h"
+#include <time.h>
 
 #include "src/event/event-internal.h"
-
+#include "src/mca/dmeta/base/base.h"
 #include "src/tools/dsched/dsched.h"
 
 static void request_init(int fd, short args, void *cbdata)
 {
     dsched_req_t *req = (dsched_req_t*)cbdata;
     size_t n;
+    uint64_t u64;
     pmix_status_t rc, rcerr = PMIX_SUCCESS;
     bool notwaiting = false;
     DSCHED_HIDE_UNUSED_PARAMS(fd, args);
@@ -46,7 +48,7 @@ static void request_init(int fd, short args, void *cbdata)
             // when reporting back the error
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NUM_NODES)) {
-            rc = PMIx_Value_get_number(&req->data[n].value, &req->num_nodes, PMIX_UINT64);
+            rc = PMIx_Value_get_number(&req->data[n].value, &u64, PMIX_UINT64);
             if (PMIX_SUCCESS != rc) {
                 PMIX_ERROR_LOG(rc);
                 // track the first error
@@ -55,7 +57,9 @@ static void request_init(int fd, short args, void *cbdata)
                 }
                 // continue processing as we may need some of the info
                 // when reporting back the error
+                continue;
             }
+            req->num_nodes = (int)u64;
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NODE_LIST)) {
             req->nlist = strdup(req->data[n].value.data.string);
@@ -64,7 +68,7 @@ static void request_init(int fd, short args, void *cbdata)
             req->exclude = strdup(req->data[n].value.data.string);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NUM_CPUS)) {
-            rc = PMIx_Value_get_number(&req->data[n].value, &req->num_cpus, PMIX_UINT64);
+            rc = PMIx_Value_get_number(&req->data[n].value, &u64, PMIX_UINT64);
             if (PMIX_SUCCESS != rc) {
                 PMIX_ERROR_LOG(rc);
                 // track the first error
@@ -73,7 +77,9 @@ static void request_init(int fd, short args, void *cbdata)
                 }
                 // continue processing as we may need some of the info
                 // when reporting back the error
+                continue;
             }
+            req->num_cpus = (int)u64;
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NUM_CPU_LIST)) {
             req->ncpulist = strdup(req->data[n].value.data.string);
@@ -132,6 +138,9 @@ static void request_init(int fd, short args, void *cbdata)
         // add request to the queue
         req->index = pmix_pointer_array_add(&dsched_globals.requests, req);
 
+        // initiate the scheduling process
+        DSCHED_THREADSHIFT(req, dsched_globals.evbase, dsched_meta_base_schedule);
+
         // if they are waiting, we don't reply at this time - we reply
         // when the allocation is actually made
 
@@ -171,6 +180,7 @@ pmix_status_t dsched_alloc_fn(const pmix_proc_t *client,
     req->ndata = ndata;
     req->cbfunc = cbfunc;
     req->cbdata = cbdata;
+    time(&req->received);
     DSCHED_THREADSHIFT(req, dsched_globals.evbase, request_init);
     return PMIX_SUCCESS;
 }

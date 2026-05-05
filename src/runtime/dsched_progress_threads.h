@@ -30,7 +30,7 @@
  * already-running progress thread will be returned (i.e., no new
  * progress thread will be started).
  */
-DSCHED_EXPORT dsched_event_base_t *dsched_progress_thread_init(const char *name, int npri);
+DSCHED_EXPORT dsched_event_base_t *dsched_progress_thread_init(const char *name);
 
 /**
  * Finalize a progress thread name (reference counted).
