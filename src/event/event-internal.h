@@ -133,6 +133,8 @@ typedef struct {
 } dsched_event_list_item_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_event_list_item_t);
 
+typedef void (*dsched_event_cbfunc_fn_t)(int sd, short args, void *cbdata);
+
 /* define a threadshift macro */
 #define DSCHED_THREADSHIFT(x, eb, f)                                \
     do {                                                               \

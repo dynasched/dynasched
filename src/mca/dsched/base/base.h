@@ -60,11 +60,11 @@ typedef struct {
     bool selected;
 } dsched_sched_globals_t;
 
-DSCHED_EXPORT extern dsched_dsched_module_t dsched_dsched;
-
 DSCHED_EXPORT extern dsched_sched_globals_t dsched_sched_globals;
 
-DSCHED_EXPORT int dsched_sched_base_schedule(void);
+DSCHED_EXPORT void dsched_sched_base_schedule(int sd, short args, void *cbdata);
+
+DSCHED_EXPORT void dsched_sched_base_cbfunc(int sd, short args, void *cbdata);
 
 END_C_DECLS
 

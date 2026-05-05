@@ -54,12 +54,6 @@ dsched_sched_globals_t dsched_sched_globals = {
     .selected = false
 };
 
-dsched_dsched_module_t dsched_sched = {
-    .init = NULL,
-    .finalize = NULL,
-    .schedule = dsched_sched_base_schedule
-};
-
 static pmix_status_t dsched_dsched_base_close(void)
 {
     dsched_sched_base_active_module_t *active;
@@ -101,22 +95,73 @@ PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dsched, "DynaSched scheduler plugins", N
                                 dsched_dsched_base_close, dsched_mca_dsched_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
-int dsched_sched_base_schedule(void)
+void dsched_sched_base_cbfunc(int sd, short args, void *cbdata)
 {
-    int rc;
+    dsched_shift_caddy_t *scd = (dsched_shift_caddy_t*)cbdata;
+    dsched_op_tracker_t *trk = scd->trk;
+    dsched_alloc_t *alloc = scd->alloc;
+    dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)trk->cbdata;
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
+
+    trk->nresponded++;
+    if (NULL != alloc) {
+        pmix_pointer_array_add(&cd->allocations, alloc);
+    }
+
+    if (trk->nresponded == trk->nactive) {
+        // all the schedulers have completed
+        DSCHED_THREADSHIFT(cd, dsched_globals.evbase, cd->evcbfunc);
+    }
+}
+
+void dsched_sched_base_schedule(int sd, short args, void *cbdata)
+{
+    dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)cbdata;
+    pmix_status_t rc;
+    dsched_op_tracker_t *trk;
     dsched_sched_base_active_module_t *mod;
+    int order;
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
+
+    // pass down to schedulers so they can each compute
+    // an allocation based on the request and available
+    // resources
+
+
+    // if an allocation cannot be made at this time, then
+    // the scheduler will return an estimated time for it
+    // to become available, if possible
+
+    // NOTE: a NULL req indicates that this was triggered
+    // by completion of an executing job (either the job
+    // completed, or the session timed out). Schedulers
+    // shall indicate which pending req is being allocated.
+    // A non-NULL req indicates that a new request has
+    // arrived and needs to be added to the schedule.
+
+    trk = PMIX_NEW(dsched_op_tracker_t);
+    trk->cbdata = cd;
+    cd->trk = trk;
+    trk->nactive = pmix_list_get_size(&dsched_sched_globals.actives);
+    order = 1;
 
     PMIX_LIST_FOREACH (mod, &dsched_sched_globals.actives, dsched_sched_base_active_module_t) {
         if (NULL != mod->module->schedule) {
-            rc = mod->module->schedule();
-            if (DSCHED_SUCCESS != rc) {
-                return rc;
+            rc = mod->module->schedule(cd, order);
+            if (PMIX_SUCCESS != rc &&
+                PMIX_OPERATION_IN_PROGRESS != rc) {
+                trk->nresponded++;
             }
+            ++order;
         }
     }
-    return DSCHED_SUCCESS;
-}
 
+    if (trk->nresponded == trk->nactive) {
+        cd->mt->req->status = PMIX_ERR_NOT_AVAILABLE;
+        DSCHED_THREADSHIFT(cd, dsched_globals.evbase, cd->evcbfunc);
+        PMIX_RELEASE(trk);
+    }
+}
 
 PMIX_CLASS_INSTANCE(dsched_sched_base_active_module_t,
                     pmix_list_item_t,

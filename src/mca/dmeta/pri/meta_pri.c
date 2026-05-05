@@ -35,13 +35,16 @@
 #include "src/util/pmix_name_fns.h"
 #include "src/util/pmix_show_help.h"
 
-#include "src/mca/dmeta/pri/meta_pri.h"
+#include "src/mca/dsched/base/base.h"
+#include "src/runtime/dsched_progress_threads.h"
 #include "src/mca/dmeta/base/base.h"
+#include "src/mca/dmeta/pri/meta_pri.h"
 
 /* Static API's */
 static int myinit(void);
 static void finalize(void);
-static pmix_status_t myschedule(pmix_list_t *data);
+static pmix_status_t myschedule(dsched_meta_t *mt,
+                                bool assign);
 
 /* Module def */
 dsched_dmeta_module_t dsched_dmeta_pri_module = {
@@ -50,113 +53,76 @@ dsched_dmeta_module_t dsched_dmeta_pri_module = {
     .schedule = myschedule
 };
 
+// local variables
+dsched_event_base_t *evbase;
+
 static int myinit(void)
 {
+    // setup our component progress thread
+    evbase = dsched_progress_thread_init("dmeta-pri");
     return PMIX_SUCCESS;
 }
 
 static void finalize(void)
 {
+    dsched_progress_thread_finalize("dmeta-pri");
     return;
 }
 
-#if 0
-typedef struct{
-    pmix_object_t super;
-    pmix_proc_t source;
-    pmix_byte_object_t bo;
-} pmix_iof_deliver_t;
-static void pdcon(pmix_iof_deliver_t *p)
+static void sched_cbfunc(int sd, short args, void *cbdata)
 {
-    p->bo.bytes = NULL;
-    p->bo.size = 0;
-}
-static void pddes(pmix_iof_deliver_t *p)
-{
-    if (NULL != p->bo.bytes) {
-        free(p->bo.bytes);
-    }
-}
-static PMIX_CLASS_INSTANCE(pmix_iof_deliver_t,
-                           pmix_object_t,
-                           pdcon, pddes);
+    dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)cbdata;
+    int n;
+    dsched_alloc_t *alloc, *best=NULL;
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
-
-static void lkcbfunc(pmix_status_t status, void *cbdata)
-{
-    pmix_iof_deliver_t *p = (pmix_iof_deliver_t*)cbdata;
-
-    /* nothing to do here - we use this solely to
-     * ensure that IOF_deliver doesn't block */
-    if (PMIX_SUCCESS != status) {
-        PMIX_ERROR_LOG(status);
-    }
-    PMIX_RELEASE(p);
-}
-#endif
-static pmix_status_t myschedule(pmix_list_t *data)
-{
-    DSCHED_HIDE_UNUSED_PARAMS(data);
-#if 0
-    pmix_iof_deliver_t *p;
-
-    /* if there is no data, then we don't handle it */
-    if (NULL == data || 0 == ndata) {
-        return PMIX_ERR_NOT_AVAILABLE;
-    }
-
-    pmix_output_verbose(2, pmix_pmeta_base_framework.framework_output,
-                        "%s: pmeta:pri called",
-                        PMIX_NAME_PRINT(&pmix_globals.myid));
-
-    /* check to see if there are any relevant directives */
-    for (n = 0; n < ndirs; n++) {
-        if (0 == strncmp(directives[n].key, PMIX_LOG_TIMESTAMP, PMIX_MAX_KEYLEN)) {
-            flags.timestamp = directives[n].value.data.time;
-        } else if (0 == strncmp(directives[n].key, PMIX_LOG_XML_OUTPUT, PMIX_MAX_KEYLEN)) {
-            flags.xml = PMIX_INFO_TRUE(&directives[n]);
-        } else if (0 == strncmp(directives[n].key, PMIX_LOG_TAG_OUTPUT, PMIX_MAX_KEYLEN)) {
-            flags.tag = PMIX_INFO_TRUE(&directives[n]);
-        }
-    }
-    /* check to see if there are any pri entries */
-    rc = PMIX_ERR_TAKE_NEXT_OPTION;
-    for (n = 0; n < ndata; n++) {
-        if (PMIX_INFO_OP_IS_COMPLETE(&data[n])) {
-            continue;
-        }
-        if (0 == strncmp(data[n].key, PMIX_LOG_STDERR, PMIX_MAX_KEYLEN)) {
-            pmix_output_verbose(2, pmix_pmeta_base_framework.framework_output,
-                                "%s: pmeta:pri delivering to stderr for source %s",
-                                PMIX_NAME_PRINT(&pmix_globals.myid),
-                                (NULL == source) ? "NULL" : PMIX_NAME_PRINT(source));
-            p = PMIX_NEW(pmix_iof_deliver_t);
-            PMIX_XFER_PROCID(&p->source, source);
-            p->bo.size = strlen(data[n].value.data.string) + 1; // include NULL terminator
-            p->bo.bytes = (char*)malloc(p->bo.size);
-            memcpy(p->bo.bytes, data[n].value.data.string, p->bo.size);
-            rc = PMIx_server_IOF_deliver(&p->source, PMIX_FWD_STDERR_CHANNEL, &p->bo, NULL, 0, lkcbfunc, (void*)p);
-            if (PMIX_SUCCESS != rc) {
-                PMIX_ERROR_LOG(rc);
-                PMIX_RELEASE(p);
+pmix_output(0, "SCHEDULES RETURNED");
+    if (cd->flag) {
+        // we have the schedules from the dsched components - take
+        // the one with the highest priority
+        for (n=0; n < cd->allocations.size; n++) {
+            alloc = (dsched_alloc_t*)pmix_pointer_array_get_item(&cd->allocations, n);
+            if (NULL == alloc) {
+                continue;
             }
-        } else if (0 == strncmp(data[n].key, PMIX_LOG_STDOUT, PMIX_MAX_KEYLEN)) {
-            pmix_output_verbose(2, pmix_pmeta_base_framework.framework_output,
-                                "%s: pmeta:pri delivering to stdout for source %s",
-                                PMIX_NAME_PRINT(&pmix_globals.myid),
-                                (NULL == source) ? "NULL" : PMIX_NAME_PRINT(source));
-            p = PMIX_NEW(pmix_iof_deliver_t);
-            PMIX_XFER_PROCID(&p->source, source);
-            p->bo.size = strlen(data[n].value.data.string) + 1; // include NULL terminator
-            p->bo.bytes = (char*)malloc(p->bo.size);
-            memcpy(p->bo.bytes, data[n].value.data.string, p->bo.size);
-            rc = PMIx_server_IOF_deliver(&p->source, PMIX_FWD_STDOUT_CHANNEL, &p->bo, NULL, 0, lkcbfunc, (void*)p);
-            if (PMIX_SUCCESS != rc) {
-                PMIX_ERROR_LOG(rc);
-                PMIX_RELEASE(p);
+            if (NULL == best || alloc->pri < best->pri) {
+                best = alloc;
             }
         }
+        if (NULL != best) {
+            cd->mt->req->allocation = best;
+            cd->mt->req->status = PMIX_SUCCESS;
+        }
     }
-#endif
-    return PMIX_SUCCESS;
+    // pass back to the base
+    DSCHED_THREADSHIFT(cd, dsched_globals.evbase, dsched_meta_base_cbfunc);
+}
+
+static void sched(int sd, short args, void *cbdata)
+{
+    dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)cbdata;
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
+
+    // do any meta-level prep work - e.g., add attributes
+    // to direct scheduler options
+    cd->evcbfunc = sched_cbfunc;
+
+    // pass this request down to the schedulers in the main
+    // progress thread
+    DSCHED_THREADSHIFT(cd, dsched_globals.evbase, dsched_sched_base_schedule);
+}
+
+static pmix_status_t myschedule(dsched_meta_t *mt,
+                                bool assign)
+{
+    dsched_shift_caddy_t *cd;
+
+    // do not block the meta-level processing as other
+    // components may be attempting to operate in parallel
+    cd = PMIX_NEW(dsched_shift_caddy_t);
+    cd->mt = mt;
+    cd->flag = assign;
+    DSCHED_THREADSHIFT(cd, evbase, sched);
+
+    return PMIX_OPERATION_IN_PROGRESS;
 }

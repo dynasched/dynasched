@@ -60,48 +60,6 @@ extern pmix_status_t dsched_session_ctrl_fn(const pmix_proc_t *requestor,
                                             const pmix_info_t directives[], size_t ndirs,
                                             pmix_info_cbfunc_t cbfunc, void *cbdata);
 
-/* track a session throughout its lifecycle */
-typedef struct {
-    /** Base object so this can be put on a list */
-    pmix_list_item_t super;
-    dsched_event_t ev;
-    // allocation request info
-    pmix_proc_t requestor;
-    pmix_alloc_directive_t directive;
-    int32_t index;
-    // whether the data is a local copy
-    bool copy;
-    // original info keys
-    pmix_info_t *data;
-    size_t ndata;
-    // callback upon completion
-    pmix_info_cbfunc_t cbfunc;
-    void *cbdata;
-    // processed directives
-    char *user_refid;
-    char *alloc_refid;
-    uint64_t num_nodes;
-    char *nlist;
-    char *exclude;
-    uint64_t num_cpus;
-    char *ncpulist;
-    char *cpulist;
-    float memsize;
-    char *time;
-    char *queue;
-    bool preemptible;
-    char *lend;
-    char *image;
-    bool waitall;
-    bool share;
-    bool noshell;
-    char *dependency;
-    char *begintime;
-    // assigned session info
-    uint32_t sessionID;
-} dsched_req_t;
-DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_req_t);
-
 END_C_DECLS
 
 #endif /* DSCHED_H */

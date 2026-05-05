@@ -173,7 +173,7 @@ static int start_progress_engine(dsched_progress_tracker_t *trk)
     return rc;
 }
 
-dsched_event_base_t *dsched_progress_thread_init(const char *name, int npri)
+dsched_event_base_t *dsched_progress_thread_init(const char *name)
 {
     dsched_progress_tracker_t *trk;
     int rc;
@@ -215,10 +215,6 @@ dsched_event_base_t *dsched_progress_thread_init(const char *name, int npri)
         DSCHED_ERROR_LOG(DSCHED_ERR_OUT_OF_RESOURCE);
         PMIX_RELEASE(trk);
         return NULL;
-    }
-
-    if (0 < npri) {
-        event_base_priority_init(trk->ev_base, npri);
     }
 
     /* add an event to the new event base (if there are no events,

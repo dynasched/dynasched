@@ -18,6 +18,8 @@ dsched_globals_t dsched_globals = {
     .sessions = PMIX_POINTER_ARRAY_STATIC_INIT,
     .topologies = PMIX_POINTER_ARRAY_STATIC_INIT,
     .requests = PMIX_POINTER_ARRAY_STATIC_INIT,
+    .avail.nnodes = 0,
+    .avail.nslots = 0,
     .param_files = NULL,
     .override_param_file = NULL,
     .suppress_override_warning = false,
@@ -222,9 +224,10 @@ PMIX_CLASS_INSTANCE(dsched_node_t, pmix_list_item_t,
 
 static void scon(dsched_shift_caddy_t *p)
 {
+    p->status = PMIX_ERROR;
+    p->order = 0;
     p->info = NULL;
     p->ninfo = 0;
-    p->toolcbfunc = NULL;
     p->cbdata = NULL;
     PMIx_Load_procid(&p->target, NULL, PMIX_RANK_INVALID);
     p->uid = 0;
@@ -237,8 +240,189 @@ static void scon(dsched_shift_caddy_t *p)
     p->scheduler = false;
     p->queries = NULL;
     p->nqueries = 0;
+    p->req = NULL;
+    p->mt = NULL;
+    p->alloc = NULL;
+    p->trk = NULL;
+    PMIX_CONSTRUCT(&p->allocations, pmix_pointer_array_t);
+    pmix_pointer_array_init(&p->allocations,
+                            DSCHED_GLOBAL_ARRAY_BLOCK_SIZE,
+                            DSCHED_GLOBAL_ARRAY_MAX_SIZE,
+                            DSCHED_GLOBAL_ARRAY_BLOCK_SIZE);
+    p->evcbfunc = NULL;
     p->infocbfunc = NULL;
+    p->toolcbfunc = NULL;
+}
+static void sdes(dsched_shift_caddy_t *p)
+{
+    int n;
+    void *ptr;
+
+    for (n=0; n < p->allocations.size; n++) {
+        ptr = pmix_pointer_array_get_item(&p->allocations, n);
+        if (NULL != ptr) {
+            PMIX_RELEASE(ptr);
+        }
+    }
+    if (NULL != p->trk) {
+        PMIX_RELEASE(p->trk);
+    }
 }
 PMIX_CLASS_INSTANCE(dsched_shift_caddy_t,
                     pmix_object_t,
-                    scon, NULL);
+                    scon, sdes);
+
+static void req_con(dsched_req_t *p)
+{
+    PMIx_Load_procid(&p->requestor, NULL, PMIX_RANK_INVALID);
+    p->directive = 0;
+    p->index = -1;
+    p->copy = false;  // data is not a local copy
+    p->data = NULL;
+    p->ndata = 0;
+    p->cbfunc = NULL;
+    p->cbdata = NULL;
+    p->status = PMIX_ERR_NOT_SUPPORTED;
+    p->user_refid = NULL;
+    p->alloc_refid = NULL;
+    p->num_nodes = 0;
+    p->nlist = NULL;
+    p->exclude = NULL;
+    p->num_cpus = 0;
+    p->ncpulist = NULL;
+    p->cpulist = NULL;
+    p->memsize = 0.0;
+    p->time = NULL;
+    p->queue = NULL;
+    p->preemptible = false;
+    p->lend = NULL;
+    p->image = NULL;
+    p->waitall = false;
+    p->share = false;
+    p->noshell = false;
+    p->dependency = NULL;
+    p->begintime = NULL;
+    p->sessionID = UINT32_MAX;
+    p->received = 0;
+    p->allocation = NULL;
+}
+static void req_des(dsched_req_t *p)
+{
+    if (NULL != p->data && p->copy) {
+        PMIx_Info_free(p->data, p->ndata);
+    }
+    if (NULL != p->user_refid) {
+        free(p->user_refid);
+    }
+    if (NULL != p->alloc_refid) {
+        free(p->alloc_refid);
+    }
+    if (NULL != p->nlist) {
+        free(p->nlist);
+    }
+    if (NULL != p->exclude) {
+        free(p->exclude);
+    }
+    if (NULL != p->ncpulist) {
+        free(p->ncpulist);
+    }
+    if (NULL != p->cpulist) {
+        free(p->cpulist);
+    }
+    if (NULL != p->time) {
+        free(p->time);
+    }
+    if (NULL != p->queue) {
+        free(p->queue);
+    }
+    if (NULL != p->lend) {
+        free(p->lend);
+    }
+    if (NULL != p->image) {
+        free(p->image);
+    }
+    if (NULL != p->dependency) {
+        free(p->dependency);
+    }
+    if (NULL != p->begintime) {
+        free(p->begintime);
+    }
+    PMIX_RELEASE(p->allocation);
+}
+PMIX_CLASS_INSTANCE(dsched_req_t,
+                    pmix_list_item_t,
+                    req_con, req_des);
+
+static void drtcon(dsched_req_item_t *p)
+{
+    p->req = NULL;
+}
+static void drtdes(dsched_req_item_t *p)
+{
+    if (NULL != p->req) {
+        PMIX_RELEASE(p->req);
+    }
+}
+PMIX_CLASS_INSTANCE(dsched_req_item_t,
+                    pmix_list_item_t,
+                    drtcon, drtdes);
+
+static void alloc_con(dsched_alloc_t *p)
+{
+    p->scheduler = NULL;
+    p->pri = 0;
+    PMIX_CONSTRUCT(&p->allocation, pmix_pointer_array_t);
+    pmix_pointer_array_init(&p->allocation,
+                            DSCHED_GLOBAL_ARRAY_BLOCK_SIZE,
+                            DSCHED_GLOBAL_ARRAY_MAX_SIZE,
+                            DSCHED_GLOBAL_ARRAY_BLOCK_SIZE);
+}
+static void alloc_des(dsched_alloc_t *p)
+{
+    void *ptr;
+    int n;
+
+    if (NULL != p->scheduler) {
+        free(p->scheduler);
+    }
+    for (n=0; n < p->allocation.size; n++) {
+        ptr = pmix_pointer_array_get_item(&p->allocation, n);
+        if (NULL != ptr) {
+            PMIX_RELEASE(ptr);
+        }
+    }
+    PMIX_DESTRUCT(&p->allocation);
+}
+PMIX_CLASS_INSTANCE(dsched_alloc_t,
+                    pmix_list_item_t,
+                    alloc_con, alloc_des);
+
+static void dmetacon(dsched_meta_t *p)
+{
+    p->nactive = 0;
+    p->nresponded = 0;
+    p->req = NULL;
+    p->activated = NULL;
+}
+static void dmetades(dsched_meta_t *p)
+{
+    if (NULL != p->req) {
+        PMIX_RELEASE(p->req);
+    }
+    if (NULL != p->activated) {
+        PMIX_RELEASE(p->activated);
+    }
+}
+PMIX_CLASS_INSTANCE(dsched_meta_t,
+                    pmix_object_t,
+                    dmetacon, dmetades);
+
+static void tcon(dsched_op_tracker_t *p)
+{
+    p->nactive = 0;
+    p->nresponded = 0;
+    p->cbdata = NULL;
+}
+PMIX_CLASS_INSTANCE(dsched_op_tracker_t,
+                    pmix_object_t,
+                    tcon, NULL);

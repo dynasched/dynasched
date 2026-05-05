@@ -91,32 +91,9 @@ typedef struct {
 } dsched_session_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_session_t);
 
-// threadshift caddy
 typedef struct {
+    /** Base object  */
     pmix_object_t super;
-    dsched_event_t ev;
-    pmix_info_t *info;
-    size_t ninfo;
-    pmix_tool_connection_cbfunc_t toolcbfunc;
-    void *cbdata;
-    pmix_proc_t target;
-    uint32_t uid;
-    uint32_t gid;
-    pid_t pid;
-    bool flag;
-    char *hostname;
-    char *cmdline;
-    bool launcher;
-    bool scheduler;
-    pmix_query_t *queries;
-    size_t nqueries;
-    pmix_info_cbfunc_t infocbfunc;
-} dsched_shift_caddy_t;
-DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_shift_caddy_t);
-
-typedef struct {
-    /** Base object so this can be put on a list */
-    pmix_list_item_t super;
     /* index of this node object in our global array */
     int32_t index;
     /** String node name */
@@ -139,8 +116,8 @@ typedef struct {
     int32_t slots_inuse;
     /** A "hard" limit (if set -- a value of 0 implies no hard limit)
         on the number of slots that can be allocated on a given
-        node. This is for some environments (e.g. grid) there may be
-        fixed limits on the number of slots that can be used.
+        node. This is for some environments (e.g. grid) where there
+        may be fixed limits on the number of slots that can be used.
 
         This value also could have been a boolean - but we may want to
         allow the hard limit be different than the soft limit - in
@@ -157,6 +134,161 @@ typedef struct {
 } dsched_node_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_node_t);
 
+typedef struct {
+    pmix_list_item_t super;
+    // name of scheduler that computed it
+    char *scheduler;
+    // priority of scheduler component that computed it
+    int pri;
+    /* array of resources that are assigned to this allocation */
+    pmix_pointer_array_t allocation;
+    //
+} dsched_alloc_t;
+DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_alloc_t);
+
+/* track a session throughout its lifecycle - time is specified in
+ * usual time format of months:days:hours:minutes:seconds, scanning
+ * from right to left (i.e., a value of "2" equates to 2 seconds)
+*/
+typedef struct {
+    /** Base object so this can be put on a list */
+    pmix_list_item_t super;
+    dsched_event_t ev;
+    // allocation request info
+    pmix_proc_t requestor;
+    pmix_alloc_directive_t directive;
+    int32_t index;
+    // whether the data is a local copy
+    bool copy;
+    // original info keys
+    pmix_info_t *data;
+    size_t ndata;
+    // callback upon completion
+    pmix_info_cbfunc_t cbfunc;
+    void *cbdata;
+    // result of allocation request
+    pmix_status_t status;
+    // processed directives
+    char *user_refid;
+    char *alloc_refid;
+    int num_nodes;
+    char *nlist;
+    char *exclude;
+    int num_cpus;
+    char *ncpulist;
+    char *cpulist;
+    float memsize;
+    char *time;         // length of time allocation should be granted for
+    char *queue;
+    bool preemptible;   // jobs in allocation are preemptible
+    char *lend;
+    char *image;
+    bool waitall;
+    bool share;
+    bool noshell;
+    char *dependency;
+    // Direct the scheduler to defer allocation until the specified time. Time
+    // may be of the form HH:MM:SS to schedule the session to start at a specific
+    // time of day (seconds are optional). If that time is already past, the
+    // next day is assumed. You may also specify "midnight" or "noon", and you
+    // can have a time-of-day suffixed with AM or PM for running in the morning
+    // or the evening. You can also say what day the session should start by
+    // specifying a date of the form MMDDYY or MM/DD/YY YYYY-MM-DD. Combine date
+    // and time using the usual format YYYY-MM-DD[THH:MM[:SS]]. You can also give
+    // times like "now + count" time-units, where the time-units can be "seconds"
+    // (default), "minutes", "hours", days, or weeks, or you can ask that the
+    // allocation be made "today" or "tomorrow".
+    char *begintime;
+    // assigned session info
+    uint32_t sessionID;
+    // time request was received
+    time_t received;
+    // assigned allocation - array of resources
+    dsched_alloc_t *allocation;
+} dsched_req_t;
+DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_req_t);
+
+// list caddy for requests
+typedef struct {
+    pmix_list_item_t super;
+    dsched_req_t *req;
+} dsched_req_item_t;
+DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_req_item_t);
+
+// callback object for meta components
+typedef struct {
+    pmix_object_t super;
+    dsched_event_t ev;
+    // number of active meta components
+    int nactive;
+    // number that have responded
+    int nresponded;
+    // the allocation request triggering this operation
+    dsched_req_t *req;
+    // allocation request being activated - if NULL, this
+    // means that no request is ready to be fulfilled.
+    dsched_req_t *activated;
+} dsched_meta_t;
+PMIX_CLASS_DECLARATION(dsched_meta_t);
+
+// callback object for sched components
+typedef struct {
+    pmix_object_t super;
+    dsched_event_t ev;
+    // the allocation request associated with this response
+    dsched_req_t *req;
+    // recommended allocation request - if NULL, this
+    // means that the scheduler could not activate
+    // any pending request
+    dsched_req_t *activated;
+    // array of allocations (dsched_alloc_t) selected by
+    // each meta component, one per active component
+    pmix_pointer_array_t allocations;
+} dsched_sched_t;
+PMIX_CLASS_DECLARATION(dsched_sched_t);
+
+// framework-level tracker
+typedef struct {
+    pmix_object_t super;
+    dsched_event_t ev;
+    int nactive;
+    int nresponded;
+    void *cbdata;
+} dsched_op_tracker_t;
+PMIX_CLASS_DECLARATION(dsched_op_tracker_t);
+
+// threadshift caddy
+typedef struct {
+    pmix_object_t super;
+    dsched_event_t ev;
+    pmix_status_t status;
+    int order;
+    pmix_info_t *info;
+    size_t ninfo;
+    void *cbdata;
+    pmix_proc_t target;
+    uint32_t uid;
+    uint32_t gid;
+    pid_t pid;
+    bool flag;
+    char *hostname;
+    char *cmdline;
+    bool launcher;
+    bool scheduler;
+    pmix_query_t *queries;
+    size_t nqueries;
+    dsched_req_t *req;
+    dsched_meta_t *mt;
+    dsched_alloc_t *alloc;
+    dsched_op_tracker_t *trk;
+    pmix_pointer_array_t allocations;
+    dsched_event_cbfunc_fn_t evcbfunc;
+    pmix_info_cbfunc_t infocbfunc;
+    pmix_tool_connection_cbfunc_t toolcbfunc;
+} dsched_shift_caddy_t;
+DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_shift_caddy_t);
+
+
 // global variables
 typedef struct {
     pmix_proc_t myid;
@@ -172,6 +304,10 @@ typedef struct {
     pmix_pointer_array_t sessions;
     pmix_pointer_array_t topologies;
     pmix_pointer_array_t requests;
+    struct {
+        int nnodes;
+        int nslots;
+    } avail;
     char *param_files;
     char *override_param_file;
     bool suppress_override_warning;
@@ -211,6 +347,7 @@ DSCHED_EXPORT dsched_node_t* dsched_node_match(pmix_list_t *nodes,
                                                const char *name,
                                                uint32_t nodeid);
 DSCHED_EXPORT bool dsched_nptr_match(dsched_node_t *n1, dsched_node_t *n2);
+
 
 #if DSCHED_PICKY_COMPILERS
 #define DSCHED_HIDE_UNUSED_PARAMS(...)                \

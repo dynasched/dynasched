@@ -82,7 +82,8 @@ typedef int (*dsched_dmeta_base_module_init_fn_t)(void);
 typedef void (*dsched_dmeta_base_module_finalize_fn_t)(void);
 
 // meta operation
-typedef pmix_status_t (*dsched_dmeta_base_module_schedule_fn_t)(pmix_list_t *data);
+typedef pmix_status_t (*dsched_dmeta_base_module_schedule_fn_t)(dsched_meta_t *mt,
+                                                                bool assign);
 
 /*
  * Module Structure
@@ -95,7 +96,6 @@ typedef struct {
     // meta operation
     dsched_dmeta_base_module_schedule_fn_t schedule;
 } dsched_dmeta_module_t;
-DSCHED_EXPORT extern dsched_dmeta_module_t dsched_meta;
 
 /*
  * Log Component

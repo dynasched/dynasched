@@ -64,7 +64,9 @@ DSCHED_EXPORT extern dsched_dmeta_module_t dsched_dmeta;
 
 DSCHED_EXPORT extern dsched_meta_globals_t dsched_meta_globals;
 
-DSCHED_EXPORT pmix_status_t dsched_meta_base_schedule(pmix_list_t *data);
+DSCHED_EXPORT void dsched_meta_base_schedule(int sd, short args, void *cbdata);
+
+DSCHED_EXPORT void dsched_meta_base_cbfunc(int sd, short args, void *cbdata);
 
 END_C_DECLS
 
