@@ -27,6 +27,7 @@ Table of contents
    quickstart.rst
    developers/index.rst
    contributing.rst
+   code-of-conduct.rst
    license.rst
    getting-help.rst
    installing-dsched/index.rst

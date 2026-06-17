@@ -86,6 +86,9 @@ docs/_static
 docs/_static/css/custom.css
 docs/_templates
 
+# Generated RST files
+docs/code-of-conduct.rst
+
 # tools
 src/tools/dsched/dsched
 src/tools/dsched_info/dsched-info
