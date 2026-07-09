@@ -124,6 +124,18 @@ DynaSched depends on PMIx (minimum version 6.1.0) and uses PMIx internals direct
 
 Do not use `PMIX_` or `pmix_` prefixes for new DynaSched symbols.
 
+### Symbol Visibility
+
+Mark a symbol with `DSCHED_EXPORT` only when it must be visible outside the shared library. Do not mark internal symbols with `DSCHED_EXPORT` — keeping the internal surface hidden avoids namespace collisions and keeps the ABI small.
+
+### Using PMIx Internals
+
+DynaSched calls PMIx's *internal* `pmix_*` routines, not the public `PMIx_*` API. When you need a PMIx facility, reach for the internal entry point rather than the user-facing binding; the public API layer is not the interface DynaSched builds against.
+
+### Compiler Attribute Macros
+
+Use the portable `__dsched_attribute_*__` wrappers (e.g., `__dsched_attribute_unused__`, `__dsched_attribute_noreturn__`, `__dsched_attribute_format__`) rather than writing a bare `__attribute__((...))`. These expand to the appropriate attribute on compilers that support it and to nothing elsewhere. For an intentionally unused function parameter, prefer `DSCHED_HIDE_UNUSED_PARAMS(...)` (see below) or the appropriate attribute macro — never leave a warning unaddressed.
+
 ### Copyright Header
 
 New files require the standard multi-institution BSD copyright block with `$COPYRIGHT$` and `$HEADER$` tokens, matching the pattern in existing files.
@@ -142,6 +154,15 @@ if (DSCHED_SUCCESS == rc)     /* correct */
 ### Bracing
 
 Always use `{ }` around every conditional or loop body, including single-statement ones.
+
+### Spacing on Conditional Statements
+
+Separate the condition from the surrounding keyword with a space: write `if (condition) {`, not `if(condition){`. When a condition spans multiple lines, put the combining operator at the end of the preceding line:
+
+```c
+if (condition1 ||
+    condition2) {
+```
 
 ### Indentation
 
@@ -191,7 +212,26 @@ Use `PMIX_NEW` / `PMIX_RELEASE` for objects that embed `pmix_object_t`. Use `mal
 
 ### C Standard
 
-DynaSched targets C11. Fix compiler warnings at their source; do not add `-Wno-*` flags.
+DynaSched targets C11. C++-style `//` comments are allowed and preferred. Fix compiler warnings at their source; do not add `-Wno-*` flags.
+
+### Prefer MCA Parameters over Hard-Coded Constants
+
+When a value might need tuning per environment, expose it as an MCA parameter rather than hard-coding it. Registration lives in `src/runtime/dsched_mca_params.c` — follow the surrounding pattern. This is idiomatic in the MCA ecosystem and expected here.
+
+### Performance and Debug Output
+
+DynaSched is not usually on a latency-critical path, but it can be a dependency of time-sensitive libraries, so avoid needless overhead. Guard debug output and expensive assertions behind `DSCHED_ENABLE_DEBUG` so release builds pay nothing for them, and do not add allocations, locks, or branches to hot paths without a measured justification.
+
+### Regenerating show_help Content
+
+The `show_help` messages are compiled into the library from a generated source file (`src/util/dsched_show_help_content.c`), produced from the `help-*.txt` sources by `src/util/dsched-convert-help.py`. The generated file depends only on the converter script, so editing a help text file does **not** trigger regeneration automatically. After any add, delete, or edit of `show_help` text, delete the generated file and rebuild so the change is picked up:
+
+```sh
+rm src/util/dsched_show_help_content.c
+make
+```
+
+Skipping this leaves the library emitting stale help output.
 
 ---
 
@@ -227,22 +267,63 @@ make install
 | automake | 1.13.4 |
 | libtool | 2.4.2 |
 
+### Modifying the configure / build system
+
+Editing the build system means regenerating it. If you change `configure.ac` or any `config/*.m4` file, re-run the full sequence before building — a plain `make` cannot pick the change up and may wedge the tree:
+
+```sh
+./autogen.pl
+./configure <same options as the original configure>
+make -j
+```
+
+Recover the original configure options with `./config.status --config` (or read the header of `config.log`).
+
+Editing a `Makefile.am` does **not** require the full `autogen.pl` + `./configure` cycle — a plain `make` regenerates the affected `Makefile[.in]` and completes the build.
+
+### Did I Break It?
+
+1. **Build cleanly.** A clean `make` after your change is the baseline. Because many source files and components are conditionally selected by `configure`, verify your configured build actually compiles the thing you changed rather than assuming it is included.
+2. **Smoke test.** Run the daemon as described under [Testing](#testing) below.
+
+### Keep .gitignore Current
+
+If your change produces a new build artifact — a new executable, generated source/header, or a library in a directory that did not have one — add it to the appropriate `.gitignore` (match the nearest existing pattern style). Never commit the build product itself; ignore it. Run `git status` after a clean build to confirm no generated file you created is left untracked.
+
+### Never Bend a Test to Accommodate a Bug
+
+Tests encode intended behavior. Do not weaken, skip, or rewrite a test — or craft a new one — merely to make buggy behavior pass. When a test fails, the default assumption is that the code is wrong, not the test. If you find a genuine bug, report it and, where appropriate, fix it rather than papering over it.
+
+---
+
+## Working in a Shared Repository
+
+Don't assume you are the only agent or person using this clone. If you are working in a **git worktree**, other worktrees may be active against the same underlying repository. Avoid repo-wide git commands that reach outside your own working area — for example `git worktree prune` or `git stash`, which writes to the repository-wide stash ref shared by all worktrees. Keep git operations scoped to your own branch and worktree. If you need to park work in progress, creating a new, clearly-named branch is fine — just avoid names that might collide with other agents' branches.
+
 ---
 
 ## Contributing
 
 ### Commit Messages
 
-Write prose commit messages, not bullet lists. The subject line should complete "If applied, this commit will …". The body must explain **why** the change is needed, not just what it does. Keep subject lines under 72 characters.
+Write prose commit messages, not bullet lists. The subject line should complete "If applied, this commit will …" and stay under 72 characters. The body must explain **why** the change is needed, not just what it does; wrap body lines at around 75 characters. DynaSched does **not** use Conventional Commits (`feat:`/`fix:` prefixes), and commit messages should not carry AI tooling attribution.
+
+Keep incidental "drive-by" fixes as their own commits, separate from your main change, so each can be reviewed and bisected independently.
 
 All commits require `Signed-off-by:` (DCO):
 ```bash
 git commit -s
 ```
 
+### Branching
+
+**Never commit directly to `master`.** All work — including the first commit in a sequence — goes on a dedicated topic branch that you create before making changes. A topic branch may carry as many commits as the logical change requires.
+
+**Never push a topic branch to `origin`.** `origin` is the shared upstream repository (`dynasched/dynasched`); push your branch to your personal fork remote instead and open the pull request from the fork. If you are unsure which remote is your fork, run `git remote -v` and ask rather than guessing.
+
 ### Pull Requests
 
-- Open PRs against the `master` branch
+- Open PRs against the `master` branch, from your fork
 - One logical change per PR
 - Describe the problem in the PR description, not just the solution
 - Update `docs/` for any user-visible change
@@ -260,3 +341,12 @@ kill %1           # shut down
 ### Reporting Bugs
 
 File issues at https://github.com/dynasched/dynasched/issues. Include the output of `dsched_info --all` and a minimal reproduction case.
+
+---
+
+## When in Doubt
+
+- Match the surrounding code's style and conventions rather than inventing a new pattern.
+- Read the relevant page under [`docs/developers/`](docs/developers/) — for example `git-github.rst` for branching and `gnu-autotools.rst` for the build system — before doing real work.
+- Hold yourself to the same bar as a thoughtful human contributor: portable, standards-conforming C11 that works across the diverse hardware and operating systems DynaSched targets, not plausible-looking code that solves one problem in one environment at the expense of others.
+- Ask on a GitHub issue for anything large before writing it.
