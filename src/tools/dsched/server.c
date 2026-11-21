@@ -151,32 +151,52 @@ static dsched_regattr_input_t dsched_attributes[] = {
 };
 
 
-/* provide a callback function for lost connections to allow us
- * to cleanup after any tools once they depart */
-static void lost_connection_hdlr(size_t evhdlr_registration_id, pmix_status_t status,
-                                 const pmix_proc_t *source, pmix_info_t info[], size_t ninfo,
-                                 pmix_info_t *results, size_t nresults,
-                                 pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
+/* take a departed tool off the list of attached tools - runs on
+ * dsched_globals.evbase, which owns that list */
+static void _lost_tool(int sd, short args, void *cbdata)
 {
+    dsched_shift_caddy_t *cd = (dsched_shift_caddy_t *) cbdata;
     pmix_proclist_t *tl;
-    DSCHED_HIDE_UNUSED_PARAMS(evhdlr_registration_id, status,
-                              info, ninfo, results, nresults);
+    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
+
+    PMIX_ACQUIRE_OBJECT(cd);
 
     pmix_output_verbose(2, dsched_globals.pmix_output,
                         "%s lost connection from tool %s",
                         PMIX_NAME_PRINT(&dsched_globals.myid),
-                        PMIX_NAME_PRINT(source));
+                        PMIX_NAME_PRINT(&cd->target));
 
     /* scan the list of attached tools to see if this one is there */
     PMIX_LIST_FOREACH(tl, &dsched_globals.tools, pmix_proclist_t)
     {
-        if (PMIx_Check_procid(&tl->proc, source)) {
+        if (PMIx_Check_procid(&tl->proc, &cd->target)) {
             /* take this tool off the list */
             pmix_list_remove_item(&dsched_globals.tools, &tl->super);
             /* release it */
             PMIX_RELEASE(tl);
             break;
         }
+    }
+    PMIX_RELEASE(cd);
+}
+
+/* provide a callback function for lost connections to allow us
+ * to cleanup after any tools once they depart. PMIx calls this on
+ * its own progress thread, so the cleanup is shifted to
+ * dsched_globals.evbase rather than done here. */
+static void lost_connection_hdlr(size_t evhdlr_registration_id, pmix_status_t status,
+                                 const pmix_proc_t *source, pmix_info_t info[], size_t ninfo,
+                                 pmix_info_t *results, size_t nresults,
+                                 pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
+{
+    dsched_shift_caddy_t *cd;
+    DSCHED_HIDE_UNUSED_PARAMS(evhdlr_registration_id, status,
+                              info, ninfo, results, nresults);
+
+    if (NULL != source) {
+        cd = PMIX_NEW(dsched_shift_caddy_t);
+        PMIx_Load_procid(&cd->target, source->nspace, source->rank);
+        DSCHED_THREADSHIFT(cd, dsched_globals.evbase, _lost_tool);
     }
 
     /* we _always_ have to execute the evhandler callback or

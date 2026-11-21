@@ -45,43 +45,10 @@
 #include "src/include/dsched_globals.h"
 #include "src/tools/dsched/dsched.h"
 
-static void opcbfunc(pmix_status_t status, void *cbdata)
-{
-    pmix_lock_t *lock = (pmix_lock_t *) cbdata;
-
-    lock->status = status;
-    PMIX_WAKEUP_THREAD(lock);
-}
-
-/* add any info that the tool couldn't self-assign */
-static int register_tool(pmix_nspace_t nspace)
-{
-    pmix_status_t ret;
-    pmix_lock_t lock;
-    pmix_proclist_t *tl;
-
-    /* record this tool */
-    tl = PMIX_NEW(pmix_proclist_t);
-    PMIX_LOAD_PROCID(&tl->proc, nspace, 0);
-    pmix_list_append(&dsched_globals.tools, &tl->super);
-
-    PMIX_CONSTRUCT_LOCK(&lock);
-    ret = PMIx_server_register_nspace(nspace, 1, NULL, 0,
-                                      opcbfunc, &lock);
-    if (PMIX_SUCCESS != ret) {
-        PMIX_ERROR_LOG(ret);
-        PMIX_DESTRUCT_LOCK(&lock);
-        return ret;
-    }
-    PMIX_WAIT_THREAD(&lock);
-    ret = lock.status;
-    PMIX_DESTRUCT_LOCK(&lock);
-    return ret;
-}
-
 static void _toolconn(int sd, short args, void *cbdata)
 {
     dsched_shift_caddy_t *cd = (dsched_shift_caddy_t *) cbdata;
+    pmix_proclist_t *tl;
     size_t n;
     pmix_status_t xrc;
     DSCHED_HIDE_UNUSED_PARAMS(sd, args);
@@ -195,15 +162,29 @@ static void _toolconn(int sd, short args, void *cbdata)
 
     /* if the tool doesn't already have a self-assigned name, then
      * there isn't much we can do about it */
-    xrc = PMIX_SUCCESS;
     if (PMIx_Nspace_invalid(cd->target.nspace) || PMIX_RANK_INVALID == cd->target.rank) {
-        xrc = PMIX_ERR_BAD_PARAM;
-    } else {
-        /* the tool is not a client of ours, but we can provide at least some information */
-        xrc = register_tool(cd->target.nspace);
+        if (NULL != cd->toolcbfunc) {
+            cd->toolcbfunc(PMIX_ERR_BAD_PARAM, &cd->target, cd->cbdata);
+        }
+        PMIX_RELEASE(cd);
+        return;
     }
+
+    /* Do NOT register the tool's namespace with PMIx. A tool that named
+     * itself sets its own job-level values, and PMIx takes a namespace
+     * the host registers while deciding on the tool to be a job of the
+     * host's, refusing the tool with PMIX_ERR_EXISTS. Registering it
+     * later would be worse: a full registration takes the name back,
+     * closing the tool's connections. So the tool is simply recorded -
+     * the lost-connection handler takes it off the list again, including
+     * when PMIx sends that event for a tool we accepted that never
+     * finished connecting. */
+    tl = PMIX_NEW(pmix_proclist_t);
+    PMIx_Load_procid(&tl->proc, cd->target.nspace, cd->target.rank);
+    pmix_list_append(&dsched_globals.tools, &tl->super);
+
     if (NULL != cd->toolcbfunc) {
-        cd->toolcbfunc(xrc, &cd->target, cd->cbdata);
+        cd->toolcbfunc(PMIX_SUCCESS, &cd->target, cd->cbdata);
     }
     PMIX_RELEASE(cd);
 }
