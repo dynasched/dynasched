@@ -267,6 +267,12 @@ static void sdes(dsched_shift_caddy_t *p)
     if (NULL != p->trk) {
         PMIX_RELEASE(p->trk);
     }
+    if (NULL != p->hostname) {
+        free(p->hostname);
+    }
+    if (NULL != p->cmdline) {
+        free(p->cmdline);
+    }
 }
 PMIX_CLASS_INSTANCE(dsched_shift_caddy_t,
                     pmix_object_t,
