@@ -18,11 +18,11 @@ sources = \
 
 # This component will only ever be built statically -- never as a DSO.
 
-noinst_LTLIBRARIES = libpmix_mca_ddl_plibltdl.la
+noinst_LTLIBRARIES = libdsched_mca_ddl_dlibltdl.la
 
-libpmix_mca_ddl_plibltdl_la_SOURCES = $(sources)
-libpmix_mca_ddl_plibltdl_la_CPPFLAGS = $(pmix_ddl_plibltdl_CPPFLAGS)
-libpmix_mca_ddl_plibltdl_la_LDFLAGS = \
-        $(pmix_ddl_plibltdl_LDFLAGS) \
+libdsched_mca_ddl_dlibltdl_la_SOURCES = $(sources)
+libdsched_mca_ddl_dlibltdl_la_CPPFLAGS = $(dsched_ddl_dlibltdl_CPPFLAGS)
+libdsched_mca_ddl_dlibltdl_la_LDFLAGS = \
+        $(dsched_ddl_dlibltdl_LDFLAGS) \
         -module -avoid-version
-libpmix_mca_ddl_plibltdl_la_LIBADD = $(pmix_ddl_plibltdl_LIBS)
+libdsched_mca_ddl_dlibltdl_la_LIBADD = $(dsched_ddl_dlibltdl_LIBS)
