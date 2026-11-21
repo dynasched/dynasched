@@ -28,6 +28,7 @@ Table of contents
    developers/index.rst
    contributing.rst
    code-of-conduct.rst
+   security.rst
    license.rst
    getting-help.rst
    installing-dsched/index.rst
