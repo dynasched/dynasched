@@ -75,7 +75,6 @@ Central data structures (`dsched_session_t`, `dsched_node_t`, `dsched_meta_t`, `
 | `dmetric` | `src/mca/dmetric/` | Resource metric collection (e.g., energy) |
 | `dmeta` | `src/mca/dmeta/` | Meta-scheduling — prioritize and order pending requests |
 | `dlog` | `src/mca/dlog/` | Logging subsystem |
-| `ddl` | `src/mca/ddl/` | Dynamic linker abstraction |
 | `dinstalldirs` | `src/mca/dinstalldirs/` | Installation directory queries |
 
 ### Currently Available Components
@@ -85,10 +84,8 @@ Central data structures (`dsched_session_t`, `dsched_node_t`, `dsched_meta_t`, `
 | `dsched` | `fifo` | `src/mca/dsched/fifo/` | First-in, first-out scheduler |
 | `dmetric` | `energy` | `src/mca/dmetric/energy/` | Energy-aware metric collection |
 | `dmeta` | `pri` | `src/mca/dmeta/pri/` | Priority-based meta-scheduler |
-| `ddl` | `ddlopen` | `src/mca/ddl/ddlopen/` | Native `dlopen(3)` loader |
-| `ddl` | `dlibltdl` | `src/mca/ddl/dlibltdl/` | GNU libltdl loader, the fallback |
 
-`ddl` keeps exactly one component, chosen at configure time, and `ddlopen` outranks `dlibltdl` — so a normal build never compiles `dlibltdl` at all. If you change it, or anything in `ddl.h` or the MCA conventions it uses, build it deliberately with `--disable-dsched-dlopen` (adding `--with-libltdl=<dir>` if libltdl is not in a default location). The `ubuntuLibltdl` CI job does the same.
+DynaSched has no dynamic-loader framework of its own: PMIx's MCA base opens component DSOs through PMIx's `pdl` framework, for DynaSched's frameworks as for its own. `--enable-dlopen` / `--disable-dlopen` still decides whether DynaSched's components are built as DSOs at all.
 
 ### Component Structure
 

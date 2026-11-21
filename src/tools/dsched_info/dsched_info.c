@@ -361,7 +361,7 @@ int main(int argc, char *argv[])
                             DSCHED_CONFIGURE_CLI, DSCHED_BUILD_USER, DSCHED_BUILD_DATE, DSCHED_BUILD_HOST,
                             DSCHED_CC, DSCHED_CC_ABSOLUTE, PLATFORM_STRINGIFY(PLATFORM_COMPILER_FAMILYNAME),
                             PLATFORM_STRINGIFY(PLATFORM_COMPILER_VERSION_STR), DSCHED_BUILD_CFLAGS, DSCHED_BUILD_LDFLAGS,
-                            DSCHED_BUILD_LIBS, DSCHED_ENABLE_DEBUG, DSCHED_HAVE_DDL_SUPPORT,
+                            DSCHED_BUILD_LIBS, DSCHED_ENABLE_DEBUG, PMIX_HAVE_PDL_SUPPORT,
                             DSCHED_C_HAVE_VISIBILITY);
         acted = true;
     }
@@ -391,7 +391,7 @@ int main(int argc, char *argv[])
                             DSCHED_CONFIGURE_CLI, DSCHED_BUILD_USER, DSCHED_BUILD_DATE, DSCHED_BUILD_HOST,
                             DSCHED_CC, DSCHED_CC_ABSOLUTE, PLATFORM_STRINGIFY(PLATFORM_COMPILER_FAMILYNAME),
                             PLATFORM_STRINGIFY(PLATFORM_COMPILER_VERSION_STR), DSCHED_BUILD_CFLAGS, DSCHED_BUILD_LDFLAGS,
-                            DSCHED_BUILD_LIBS, DSCHED_ENABLE_DEBUG, DSCHED_HAVE_DDL_SUPPORT,
+                            DSCHED_BUILD_LIBS, DSCHED_ENABLE_DEBUG, PMIX_HAVE_PDL_SUPPORT,
                             DSCHED_C_HAVE_VISIBILITY);
         pmix_info_show_component_version("DynaSched", &mca_types, &dsched_component_map, pmix_info_type_all,
                                          pmix_info_component_all, pmix_info_ver_full,
