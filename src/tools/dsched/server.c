@@ -355,7 +355,6 @@ int dsched_server_init(pmix_cli_result_t *results)
     if (dsched_globals.server_initialized) {
         return PMIX_SUCCESS;
     }
-    dsched_globals.server_initialized = true;
 
     pmix_output_verbose(2, dsched_globals.pmix_output,
                         "%s server:dsched: initialize",
@@ -493,6 +492,10 @@ int dsched_server_init(pmix_cli_result_t *results)
         return rc;
     }
     PMIx_Info_free(info, ninfo);
+    /* from here on there is a tool library to finalize, whatever fails
+     * next - and not before, or finalize asks PMIx to tear down a library
+     * that never came up, which it reports as an error */
+    dsched_globals.server_initialized = true;
 
     /* register our attributes */
     for (n = 0; 0 != strlen(dsched_attributes[n].function); n++) {
