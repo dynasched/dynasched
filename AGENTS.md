@@ -228,6 +228,18 @@ Never wait for PMIx from a handler running on `dsched_globals.evbase`. A PMIx ca
 
 A completion callback whose only job is to record a status and wake a `pmix_lock_t` that the caller blocks on with `PMIX_WAIT_THREAD` may do that directly, because the lock is a PMIx primitive waited on with a condition variable. If you ever thread-shift such a wakeup onto `dsched_globals.evbase` instead, the waiter must not be the thread that drives that event base — it would park the only thread able to deliver the wakeup.
 
+### Stopping `dsched`: `dsterm` Is the Orderly Way, Signals the Abnormal One
+
+`dsterm` asks `dsched` to terminate with a PMIx `PMIX_JOB_CTRL_TERMINATE` request (handled in `src/tools/dsched/job_ctrl.c`). `dsched` then leaves its event loop and takes `main()`'s normal way out, exiting 0. Only root and the user `dsched` runs as may make that request.
+
+`SIGTERM`, `SIGINT` and `SIGHUP` are the abnormal way out and exit 1. They follow a fixed three-signal sequence in `abort_signal_callback()`, which is deliberate — do not change it:
+
+1. The first signal makes an orderly abort on the event base (`clean_abort()`): finalize the PMIx server, remove the session directory and any `--report-pid` file, and exit.
+2. A second signal, if that abort has not finished, warns that another signal will force termination.
+3. A third signal forces termination from the signal handler itself.
+
+Under `--keepalive`, the first signal is ignored, because the pipe decides when `dsched` goes; the second and third behave as above. Every way out removes the `--report-pid` file. The sequence is documented for users in `dsterm(1)`; keep the two in step.
+
 ### Thread-Shifting with Caddies
 
 A **caddy** (`dsched_shift_caddy_t`) carries request context across thread-shift boundaries. Pattern:

@@ -98,12 +98,21 @@ static int wait_dvm(pid_t pid)
     return 255;
 }
 
+/*
+ * The abnormal way out - see abort_signal_callback() for the signal
+ * sequence that leads here. Runs on dsched_globals.evbase, the "safe
+ * place" the signal handler cannot itself reach. arg is NULL when a
+ * signal brought us here, and the caddy from parent_died_fn() when the
+ * --keepalive pipe closed. The orderly way out is a terminate request
+ * (dsterm), which leaves the event loop instead and exits 0.
+ */
 static void clean_abort(int fd, short flags, void *arg)
 {
     DSCHED_HIDE_UNUSED_PARAMS(fd, flags);
 
     if (keepalive && NULL == arg) {
-        // ignore this
+        /* under --keepalive the pipe, not a first signal, decides when
+         * we go - the second and third signals still apply */
         return;
     }
 
@@ -143,8 +152,20 @@ static bool first = true;
 static bool second = true;
 
 /*
- * Attempt to terminate the job and wait for callback indicating
- * the job has been aborted.
+ * The handler for SIGTERM, SIGINT and SIGHUP. The signals count up in a
+ * fixed sequence, and the sequence is deliberate - keep it:
+ *
+ *  1. The first signal pokes term_pipe, so that clean_abort() runs on the
+ *     event base and makes an orderly abort: finalize the PMIx server,
+ *     remove the session directory and any --report-pid file, exit 1.
+ *  2. A second signal, should that abort not have finished, warns that
+ *     another signal will force termination.
+ *  3. A third signal forces termination from here: one last attempt to
+ *     finalize the server and remove our files, then exit 1.
+ *
+ * Under --keepalive, clean_abort() ignores the first signal; the second
+ * and third behave as above. A signal is dsched's abnormal way out -
+ * the orderly one is dsterm, which exits 0 - so every path here exits 1.
  */
 static void abort_signal_callback(int fd)
 {
@@ -152,9 +173,6 @@ static void abort_signal_callback(int fd)
     char *msg = "Abort is in progress...hit ctrl-c again to forcibly terminate\n\n";
     DSCHED_HIDE_UNUSED_PARAMS(fd);
 
-    /* if this is the first time thru, just get
-     * the current time
-     */
     if (first) {
         first = false;
         /* tell the event lib to attempt to abnormally terminate */
