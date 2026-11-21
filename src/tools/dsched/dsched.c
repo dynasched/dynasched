@@ -267,7 +267,10 @@ int main(int argc, char *argv[])
     dsched_globals.pid = getpid();
     if (DSCHED_SUCCESS != (ret = dsched_init_util())) {
         fprintf(stderr, "dsched_init_util failed: %s\n", PMIx_Error_string(ret));
-        exit(ret);
+        /* main() hands the shell only the low eight bits of its status,
+         * so a DynaSched or PMIx error code - a negative number - arrives
+         * as a meaningless 251 or 255. Every startup failure exits 1. */
+        exit(1);
     }
 
     /** setup callbacks for abort signals - from this point
@@ -308,7 +311,7 @@ int main(int argc, char *argv[])
         if (PMIX_ERR_SILENT != rc) {
             fprintf(stderr, "%s: command line error (%s)\n", dsched_globals.basename, PMIx_Error_string(rc));
         }
-        return rc;
+        return 1;
     }
 
     // we do NOT accept arguments other than our own
@@ -323,7 +326,7 @@ int main(int argc, char *argv[])
                 printf("%s", ptr);
                 free(ptr);
             }
-            return -1;
+            return 1;
         }
         free(str);
     }
@@ -349,7 +352,7 @@ int main(int argc, char *argv[])
                            "dsched register params",
                            DSCHED_ERROR_NAME(ret), ret);
         }
-        return ret;
+        return 1;
     }
 
     /* Detach from the controlling terminal, if so directed. This has to
@@ -635,7 +638,13 @@ DONE:
     if (dsched_globals.debug) {
         fprintf(stderr, "exiting with status %d\n", dsched_globals.exit_status);
     }
-    exit(dsched_globals.exit_status);
+    /* exit_status may hold a DynaSched or PMIx error code, which the shell
+     * would see only as its low eight bits - report any status that is
+     * not already a valid exit status as plain failure */
+    if (0 < dsched_globals.exit_status && 256 > dsched_globals.exit_status) {
+        exit(dsched_globals.exit_status);
+    }
+    exit(0 == dsched_globals.exit_status ? 0 : 1);
 
     return ret;
 }
