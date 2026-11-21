@@ -256,7 +256,7 @@ int main(int argc, char *argv[])
 
     /* Initialize the argv parsing stuff */
     dsched_globals.basename = pmix_basename(pargv[0]);
-    dsched_globals.pid = dsched_globals.pid;
+    dsched_globals.pid = getpid();
     if (DSCHED_SUCCESS != (ret = dsched_init_util())) {
         fprintf(stderr, "dsched_init_util failed: %s\n", PMIx_Error_string(ret));
         exit(ret);
