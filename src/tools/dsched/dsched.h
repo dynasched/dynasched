@@ -60,6 +60,11 @@ extern pmix_status_t dsched_session_ctrl_fn(const pmix_proc_t *requestor,
                                             const pmix_info_t directives[], size_t ndirs,
                                             pmix_info_cbfunc_t cbfunc, void *cbdata);
 
+extern pmix_status_t dsched_job_ctrl_fn(const pmix_proc_t *requestor,
+                                        const pmix_proc_t targets[], size_t ntargets,
+                                        const pmix_info_t directives[], size_t ndirs,
+                                        pmix_info_cbfunc_t cbfunc, void *cbdata);
+
 END_C_DECLS
 
 #endif /* DSCHED_H */

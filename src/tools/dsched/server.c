@@ -76,6 +76,7 @@ static pmix_server_module_t dsched_server = {
     .query = dsched_query_fn,
     .tool_connected2 = dsched_tool_connected_fn,
     .allocate = dsched_alloc_fn,
+    .job_control = dsched_job_ctrl_fn,
     .session_control = dsched_session_ctrl_fn
 };
 
@@ -121,6 +122,8 @@ static dsched_regattr_input_t dsched_attributes[] = {
                          "PMIX_QUERY_ALLOCATION",
                          "PMIX_QUERY_ALLOC_STATUS",
                          NULL}},
+    {.function = "PMIx_Job_control", .attrs = (char *[]){"PMIX_JOB_CTRL_TERMINATE", NULL}},
+    {.function = "PMIx_Job_control_nb", .attrs = (char *[]){"PMIX_JOB_CTRL_TERMINATE", NULL}},
     {.function = "PMIx_Log", .attrs = (char *[]){"NONE", NULL}},
     {.function = "PMIx_Log_nb", .attrs = (char *[]){"NONE", NULL}},
     {.function = "PMIx_Register_event_handler", .attrs = (char *[]){"NONE", NULL}},
