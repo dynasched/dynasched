@@ -48,6 +48,9 @@
 #    include <netdb.h>
 #endif
 #include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "src/class/pmix_hotel.h"
 #include "src/class/pmix_list.h"
@@ -59,6 +62,7 @@
 #include "src/util/pmix_environ.h"
 #include "src/util/pmix_show_help.h"
 
+#include "src/include/dsched_constants.h"
 #include "src/include/dsched_globals.h"
 #include "src/include/dsched_stdint.h"
 #include "src/threads/pmix_threads.h"
@@ -248,6 +252,95 @@ static void regcbfunc(pmix_status_t status, size_t ref, void *cbdata)
 /*
  * Initialize global variables used w/in the server.
  */
+/* Read a pid, as the whole of str: digits only, and greater than zero */
+static bool parse_pid(const char *str, pid_t *pid)
+{
+    char *end = NULL;
+    long val;
+
+    if (NULL == str || !isdigit((unsigned char) str[0])) {
+        return false;
+    }
+    errno = 0;
+    val = strtol(str, &end, 10);
+    if (0 != errno || NULL == end || '\0' != *end || 0 >= val || (long) (pid_t) val != val) {
+        return false;
+    }
+    *pid = (pid_t) val;
+    return true;
+}
+
+/* Read a pid from the first line of a file. */
+static bool read_pid_file(const char *path, pid_t *pid, const char **reason)
+{
+    char buf[64], *nl;
+    FILE *fp;
+
+    fp = fopen(path, "r");
+    if (NULL == fp) {
+        *reason = "the file could not be opened";
+        return false;
+    }
+    if (NULL == fgets(buf, sizeof(buf), fp)) {
+        fclose(fp);
+        *reason = "the file is empty";
+        return false;
+    }
+    fclose(fp);
+    if (NULL != (nl = strchr(buf, '\n'))) {
+        *nl = '\0';
+    }
+    if (!parse_pid(buf, pid)) {
+        *reason = "the file does not hold a pid";
+        return false;
+    }
+    return true;
+}
+
+/* Turn the --controller argument into the PMIx directive that names that
+ * controller - the syntax is the one the "controller" help topic gives.
+ * Returns false, having explained why, if the argument cannot be used. */
+static bool controller_directive(const char *arg, void *ilist)
+{
+    const char *reason = "it does not begin with a recognized prefix";
+    pid_t pid;
+    bool flag = true;
+    pmix_status_t rc = PMIX_SUCCESS;
+
+    if (0 == strncmp(arg, "pid:", 4)) {
+        if (0 == strncmp(arg + 4, "file:", 5)) {
+            if (!read_pid_file(arg + 9, &pid, &reason)) {
+                goto bad;
+            }
+        } else if (!parse_pid(arg + 4, &pid)) {
+            reason = "the pid is not a positive number";
+            goto bad;
+        }
+        rc = PMIx_Info_list_add(ilist, PMIX_SERVER_PIDINFO, &pid, PMIX_PID);
+    } else if (0 == strncmp(arg, "file:", 5) && '\0' != arg[5]) {
+        rc = PMIx_Info_list_add(ilist, PMIX_TOOL_ATTACHMENT_FILE, arg + 5, PMIX_STRING);
+    } else if (0 == strncmp(arg, "uri:", 4) && '\0' != arg[4]) {
+        rc = PMIx_Info_list_add(ilist, PMIX_SERVER_URI, arg + 4, PMIX_STRING);
+    } else if (0 == strncmp(arg, "ns:", 3) && '\0' != arg[3]) {
+        rc = PMIx_Info_list_add(ilist, PMIX_SERVER_NSPACE, arg + 3, PMIX_STRING);
+    } else if (0 == strcmp(arg, "system")) {
+        rc = PMIx_Info_list_add(ilist, PMIX_CONNECT_TO_SYSTEM, &flag, PMIX_BOOL);
+    } else if (0 == strcmp(arg, "system-first")) {
+        rc = PMIx_Info_list_add(ilist, PMIX_CONNECT_SYSTEM_FIRST, &flag, PMIX_BOOL);
+    } else {
+        goto bad;
+    }
+    if (PMIX_SUCCESS != rc) {
+        reason = PMIx_Error_string(rc);
+        goto bad;
+    }
+    return true;
+
+bad:
+    pmix_show_help("help-dsched.txt", "bad-controller", true, arg, reason);
+    return false;
+}
+
 int dsched_server_init(pmix_cli_result_t *results)
 {
     void *ilist;
@@ -257,7 +350,7 @@ int dsched_server_init(pmix_cli_result_t *results)
     char *tmp;
     pmix_status_t rc;
     pmix_lock_t lock;
-    DSCHED_HIDE_UNUSED_PARAMS(results);
+    pmix_cli_item_t *opt;
 
     if (dsched_globals.server_initialized) {
         return PMIX_SUCCESS;
@@ -354,21 +447,32 @@ int dsched_server_init(pmix_cli_result_t *results)
                            &dsched_globals.bind_progress_thread_reqd, PMIX_BOOL);
     }
 
-    /* if the system controller is present, connect to it */
-    rc = PMIx_Info_list_add(ilist, PMIX_CONNECT_TO_SYS_CONTROLLER,
-                            NULL, PMIX_BOOL);
-    if (PMIX_SUCCESS != rc) {
-        PMIx_Info_list_release(ilist);
-        return rc;
-    }
+    opt = pmix_cmd_line_get_param(results, DSCHED_CLI_CONTROLLER_URI);
+    if (NULL != opt && NULL != opt->values && NULL != opt->values[0]) {
+        /* connect to the controller we were told of. A controller named
+         * explicitly is required, so the connection is not optional: if
+         * it cannot be reached, PMIx says so and we do not start */
+        if (!controller_directive(opt->values[0], ilist)) {
+            PMIx_Info_list_release(ilist);
+            return DSCHED_ERR_SILENT;
+        }
+    } else {
+        /* if the system controller is present, connect to it */
+        rc = PMIx_Info_list_add(ilist, PMIX_CONNECT_TO_SYS_CONTROLLER,
+                                NULL, PMIX_BOOL);
+        if (PMIX_SUCCESS != rc) {
+            PMIx_Info_list_release(ilist);
+            return rc;
+        }
 
-    /* don't require the connection else we will abort
-     * if the system controller isn't found */
-    rc = PMIx_Info_list_add(ilist, PMIX_TOOL_CONNECT_OPTIONAL,
-                            NULL, PMIX_BOOL);
-    if (PMIX_SUCCESS != rc) {
-        PMIx_Info_list_release(ilist);
-        return rc;
+        /* don't require the connection else we will abort
+         * if the system controller isn't found */
+        rc = PMIx_Info_list_add(ilist, PMIX_TOOL_CONNECT_OPTIONAL,
+                                NULL, PMIX_BOOL);
+        if (PMIX_SUCCESS != rc) {
+            PMIx_Info_list_release(ilist);
+            return rc;
+        }
     }
 
     /* convert to an info array */
