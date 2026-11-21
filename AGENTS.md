@@ -85,6 +85,10 @@ Central data structures (`dsched_session_t`, `dsched_node_t`, `dsched_meta_t`, `
 | `dsched` | `fifo` | `src/mca/dsched/fifo/` | First-in, first-out scheduler |
 | `dmetric` | `energy` | `src/mca/dmetric/energy/` | Energy-aware metric collection |
 | `dmeta` | `pri` | `src/mca/dmeta/pri/` | Priority-based meta-scheduler |
+| `ddl` | `ddlopen` | `src/mca/ddl/ddlopen/` | Native `dlopen(3)` loader |
+| `ddl` | `dlibltdl` | `src/mca/ddl/dlibltdl/` | GNU libltdl loader, the fallback |
+
+`ddl` keeps exactly one component, chosen at configure time, and `ddlopen` outranks `dlibltdl` — so a normal build never compiles `dlibltdl` at all. If you change it, or anything in `ddl.h` or the MCA conventions it uses, build it deliberately with `--disable-dsched-dlopen` (adding `--with-libltdl=<dir>` if libltdl is not in a default location). The `ubuntuLibltdl` CI job does the same.
 
 ### Component Structure
 
@@ -218,7 +222,11 @@ The `fifo` scheduler component demonstrates the pattern: work is dispatched to a
 
 ### GOLDEN RULE: Thread-Shift Every PMIx Upcall Before Touching DynaSched State
 
-PMIx server-module upcalls (`dsched_alloc_fn`, `dsched_query_fn`, `dsched_session_ctrl_fn`, `dsched_tool_connected_fn`, ...) and PMIx callbacks execute on the **PMIx** progress thread. DynaSched state must never be read or written from that thread. The function PMIx calls should do nothing beyond capturing its arguments in a caddy and posting it to `dsched_globals.evbase`; the handler that runs there does the work. The existing upcalls all follow this pattern — keep it that way.
+PMIx server-module upcalls (`dsched_alloc_fn`, `dsched_query_fn`, `dsched_session_ctrl_fn`, `dsched_tool_connected_fn`, `client_finalized`, ...), PMIx event handlers such as the lost-connection handler, and PMIx callbacks execute on the **PMIx** progress thread. DynaSched state must never be read or written from that thread. The function PMIx calls should do nothing beyond capturing its arguments in a caddy and posting it to `dsched_globals.evbase`; the handler that runs there does the work. The existing upcalls all follow this pattern — keep it that way.
+
+Never wait for PMIx from a handler running on `dsched_globals.evbase`. A PMIx call that completes through a callback is answered by a chain of events: start it and return, have the callback record what it was given and shift back to the event base, and finish the work in the handler that runs there.
+
+**Do not register a connecting tool's namespace with PMIx.** DynaSched accepts only tools that name themselves, and PMIx takes a namespace the host registers while deciding on such a tool to be a job of the host's: it refuses the tool with `PMIX_ERR_EXISTS`. The tool library sets its own job-level values. A tool leaves through `client_finalized` when it finalizes and through `PMIX_ERR_LOST_CONNECTION` otherwise; both take it off `dsched_globals.tools`.
 
 A completion callback whose only job is to record a status and wake a `pmix_lock_t` that the caller blocks on with `PMIX_WAIT_THREAD` may do that directly, because the lock is a PMIx primitive waited on with a condition variable. If you ever thread-shift such a wakeup onto `dsched_globals.evbase` instead, the waiter must not be the thread that drives that event base — it would park the only thread able to deliver the wakeup.
 
@@ -423,6 +431,8 @@ Running with `--dmca dsched_base_verbose 5` (and the matching `dlog`, `dmeta` an
 ### Reporting Bugs
 
 File issues at https://github.com/dynasched/dynasched/issues. Include the output of `dsched-info --all` and a minimal reproduction case.
+
+A report that should not be made in public is not filed as an issue: it goes through GitHub's private reporting form, as [`SECURITY.md`](SECURITY.md) describes.
 
 ---
 
