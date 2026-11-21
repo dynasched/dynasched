@@ -46,6 +46,4 @@ EXTRA_DIST = \
     dsched_mca_priority_sort.pl \
     mca_library_paths.txt \
     from-savannah/upstream-config.guess \
-    from-savannah/upstream-config.sub \
-    ltmain_pgi_tp.diff \
-    ltmain_nag_pthread.diff
+    from-savannah/upstream-config.sub
