@@ -24,7 +24,7 @@ static pmix_status_t component_query(pmix_mca_base_module_t **module, int *prior
  */
 dsched_dmeta_base_component_t dsched_mca_dmeta_pri_component = {
 
-    DSCHED_DMETA_BASE_VERSION_1_0_0,
+    DSCHED_MCA_BASE_VERSION(dmeta),
     .pmix_mca_component_name = "pri",
     PMIX_MCA_BASE_MAKE_VERSION(component,
                                DSCHED_MAJOR_VERSION,

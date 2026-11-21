@@ -91,9 +91,9 @@ static pmix_status_t dsched_dsched_base_open(pmix_mca_base_open_flag_t flags)
     return pmix_mca_base_framework_components_open(&dsched_dsched_base_framework, flags);
 }
 
-PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dsched, "DynaSched scheduler plugins", NULL, dsched_dsched_base_open,
-                                dsched_dsched_base_close, dsched_mca_dsched_base_static_components,
-                                PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
+DSCHED_MCA_BASE_FRAMEWORK_DECLARE(dsched, "DynaSched scheduler plugins", NULL, dsched_dsched_base_open,
+                                  dsched_dsched_base_close, dsched_mca_dsched_base_static_components,
+                                  PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 void dsched_sched_base_cbfunc(int sd, short args, void *cbdata)
 {

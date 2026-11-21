@@ -105,7 +105,15 @@ typedef pmix_mca_base_component_t dsched_dlog_base_component_t;
 /*
  * Macro for use in components that are of type log
  */
-#define DSCHED_DLOG_BASE_VERSION_1_0_0 DSCHED_MCA_BASE_VERSION_1_0_0("dlog", 1, 0, 0)
+/* The dlog framework interface version. It is stated here and nowhere
+ * else: components stamp it into their struct with
+ * DSCHED_MCA_BASE_VERSION(dlog), and the framework's declaration reaches
+ * the same three by pasting its name, so the two cannot drift apart.
+ * Bump it on any change to the module interface that a component built
+ * against the previous one would not survive. */
+#define DSCHED_MCA_dlog_MAJOR_VERSION   1
+#define DSCHED_MCA_dlog_MINOR_VERSION   0
+#define DSCHED_MCA_dlog_RELEASE_VERSION 0
 
 END_C_DECLS
 

@@ -49,6 +49,7 @@
 #include "src/threads/pmix_threads.h"
 #include "src/util/pmix_show_help.h"
 
+#include "src/include/dsched_mca.h"
 #include "src/util/dsched_attr.h"
 
 BEGIN_C_DECLS
@@ -368,10 +369,6 @@ PMIX_EXPORT void dsched_hide_unused_params(int x, ...);
             dsched_globals.exit_status = (r);   \
         }                                       \
     } while(0)
-
-#define DSCHED_MCA_BASE_VERSION_1_0_0(type, type_major, type_minor, type_release) \
-    PMIX_MCA_BASE_VERSION_2_1_0("dsched", DSCHED_MAJOR_VERSION, DSCHED_MINOR_VERSION, \
-                                DSCHED_RELEASE_VERSION, type, type_major, type_minor, type_release)
 
 END_C_DECLS
 

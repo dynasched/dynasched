@@ -41,6 +41,7 @@
 
 #include "src/mca/base/pmix_base.h"
 #include "src/mca/mca.h"
+#include "src/include/dsched_mca.h"
 
 BEGIN_C_DECLS
 
@@ -162,7 +163,15 @@ typedef struct dsched_ddl_base_module_1_0_0_t dsched_ddl_base_module_t;
 /**
  * Macro for use in components that are of type PDL
  */
-#define DSCHED_DDL_BASE_VERSION_1_0_0 PMIX_MCA_BASE_VERSION_1_0_0("ddl", 1, 0, 0)
+/* The ddl framework interface version. It is stated here and nowhere
+ * else: components stamp it into their struct with
+ * DSCHED_MCA_BASE_VERSION(ddl), and the framework's declaration reaches
+ * the same three by pasting its name, so the two cannot drift apart.
+ * Bump it on any change to the module interface that a component built
+ * against the previous one would not survive. */
+#define DSCHED_MCA_ddl_MAJOR_VERSION   1
+#define DSCHED_MCA_ddl_MINOR_VERSION   0
+#define DSCHED_MCA_ddl_RELEASE_VERSION 0
 
 END_C_DECLS
 

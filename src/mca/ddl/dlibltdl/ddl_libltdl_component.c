@@ -49,7 +49,7 @@ dsched_ddl_dlibltddl_component_t dsched_mca_ddl_dlibltddl_component = {
         /* First, the mca_component_t struct containing meta information
            about the component itself */
         .base_version = {
-            DSCHED_DL_BASE_VERSION_1_0_0,
+            DSCHED_MCA_BASE_VERSION(ddl),
 
             /* Component name and version */
             .pmix_mca_component_name = "dlibltdl",
