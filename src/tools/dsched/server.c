@@ -305,14 +305,6 @@ int dsched_server_init(pmix_cli_result_t *results)
                            &dsched_globals.bind_progress_thread_reqd, PMIX_BOOL);
     }
 
-    /* schedulers always allow remote tool connections */
-    rc = PMIx_Info_list_add(ilist, PMIX_SERVER_REMOTE_CONNECTIONS,
-                            NULL, PMIX_BOOL);
-    if (PMIX_SUCCESS != rc) {
-        PMIx_Info_list_release(ilist);
-        return rc;
-    }
-
     /* if the system controller is present, connect to it */
     rc = PMIx_Info_list_add(ilist, PMIX_CONNECT_TO_SYS_CONTROLLER,
                             NULL, PMIX_BOOL);
