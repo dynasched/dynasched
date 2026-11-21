@@ -68,7 +68,11 @@
 
 #include "src/tools/dsched/dsched.h"
 
+static pmix_status_t client_finalized(const pmix_proc_t *proc, void *server_object,
+                                      pmix_op_cbfunc_t cbfunc, void *cbdata);
+
 static pmix_server_module_t dsched_server = {
+    .client_finalized = client_finalized,
     .query = dsched_query_fn,
     .tool_connected2 = dsched_tool_connected_fn,
     .allocate = dsched_alloc_fn,
@@ -151,8 +155,9 @@ static dsched_regattr_input_t dsched_attributes[] = {
 };
 
 
-/* take a departed tool off the list of attached tools - runs on
- * dsched_globals.evbase, which owns that list */
+/* take a departed tool off the list of attached tools, whether it
+ * finalized or lost its connection - runs on dsched_globals.evbase,
+ * which owns that list */
 static void _lost_tool(int sd, short args, void *cbdata)
 {
     dsched_shift_caddy_t *cd = (dsched_shift_caddy_t *) cbdata;
@@ -162,7 +167,7 @@ static void _lost_tool(int sd, short args, void *cbdata)
     PMIX_ACQUIRE_OBJECT(cd);
 
     pmix_output_verbose(2, dsched_globals.pmix_output,
-                        "%s lost connection from tool %s",
+                        "%s tool %s has departed",
                         PMIX_NAME_PRINT(&dsched_globals.myid),
                         PMIX_NAME_PRINT(&cd->target));
 
@@ -204,6 +209,27 @@ static void lost_connection_hdlr(size_t evhdlr_registration_id, pmix_status_t st
     if (NULL != cbfunc) {
         cbfunc(PMIX_EVENT_ACTION_COMPLETE, NULL, 0, NULL, NULL, cbdata);
     }
+}
+
+/* A tool that finalizes is never reported as a lost connection: PMIx
+ * marks the peer finalized before its connection drops, so this upcall
+ * is the only notice that it has gone. Like the lost-connection handler,
+ * it runs on PMIx's progress thread, so the cleanup is shifted to
+ * dsched_globals.evbase. Nothing further is owed to PMIx once the work
+ * is posted, so the operation is reported as already complete and the
+ * callback is not used. */
+static pmix_status_t client_finalized(const pmix_proc_t *proc, void *server_object,
+                                      pmix_op_cbfunc_t cbfunc, void *cbdata)
+{
+    dsched_shift_caddy_t *cd;
+    DSCHED_HIDE_UNUSED_PARAMS(server_object, cbfunc, cbdata);
+
+    if (NULL != proc) {
+        cd = PMIX_NEW(dsched_shift_caddy_t);
+        PMIx_Load_procid(&cd->target, proc->nspace, proc->rank);
+        DSCHED_THREADSHIFT(cd, dsched_globals.evbase, _lost_tool);
+    }
+    return PMIX_OPERATION_SUCCEEDED;
 }
 
 static void regcbfunc(pmix_status_t status, size_t ref, void *cbdata)
