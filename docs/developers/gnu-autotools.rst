@@ -92,7 +92,6 @@ to at least the versions listed below.
      - Autoconf
      - Automake
      - Libtool
-     - Flex
      - Sphinx
 
    * - Git main
@@ -100,7 +99,6 @@ to at least the versions listed below.
      - 2.69
      - 1.15
      - 2.4.6
-     - 2.5.35
      - 4.2.0
 
 Checking your versions

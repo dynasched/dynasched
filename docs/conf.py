@@ -54,7 +54,6 @@ event_min_version = f"{dsched_data['event_min_version']}"
 automake_min_version = f"{dsched_data['automake_min_version']}"
 autoconf_min_version = f"{dsched_data['autoconf_min_version']}"
 libtool_min_version = f"{dsched_data['libtool_min_version']}"
-flex_min_version = f"{dsched_data['flex_min_version']}"
 python_min_version = f"{dsched_data['python_min_version']}"
 pmix_min_version = f"{dsched_data['pmix_min_version']}"
 
@@ -203,7 +202,6 @@ rst_prolog = f"""
 .. |automake_min_version| replace:: {automake_min_version}
 .. |autoconf_min_version| replace:: {autoconf_min_version}
 .. |libtool_min_version| replace:: {libtool_min_version}
-.. |flex_min_version| replace:: {flex_min_version}
 .. |python_min_version| replace:: {python_min_version}
 .. |pmix_min_version| replace:: {pmix_min_version}
 
