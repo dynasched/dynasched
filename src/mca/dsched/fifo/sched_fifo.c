@@ -52,7 +52,7 @@ dsched_dsched_module_t dsched_sched_fifo_module = {
 
 // local variables
 static pmix_list_t reqs;
-dsched_event_base_t *evbase;
+static dsched_event_base_t *evbase;
 
 /*
  * Local functions
