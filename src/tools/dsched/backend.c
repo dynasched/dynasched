@@ -122,16 +122,41 @@ static void _toolconn(int sd, short args, void *cbdata)
                 }
 
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_NSPACE)) {
+                if (PMIX_STRING != cd->info[n].value.type ||
+                    NULL == cd->info[n].value.data.string) {
+                    if (NULL != cd->toolcbfunc) {
+                        cd->toolcbfunc(PMIX_ERR_BAD_PARAM, NULL, cd->cbdata);
+                    }
+                    PMIX_RELEASE(cd);
+                    return;
+                }
                 PMIx_Load_nspace(cd->target.nspace, cd->info[n].value.data.string);
 
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_RANK)) {
-                cd->target.rank = cd->info[n].value.data.rank;
+                xrc = PMIx_Value_get_number(&cd->info[n].value, &cd->target.rank, PMIX_PROC_RANK);
+                if (PMIX_SUCCESS != xrc) {
+                    if (NULL != cd->toolcbfunc) {
+                        cd->toolcbfunc(xrc, NULL, cd->cbdata);
+                    }
+                    PMIX_RELEASE(cd);
+                    return;
+                }
 
+            /* The hostname and command line are informational, so one that
+             * is not a string is skipped rather than refused. A PMIX_STRING
+             * can also arrive carrying NULL, and a key can appear twice;
+             * keep the first usable value. */
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_HOSTNAME)) {
-                cd->hostname = strdup(cd->info[n].value.data.string);
+                if (PMIX_STRING == cd->info[n].value.type &&
+                    NULL != cd->info[n].value.data.string && NULL == cd->hostname) {
+                    cd->hostname = strdup(cd->info[n].value.data.string);
+                }
 
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_CMD_LINE)) {
-                cd->cmdline = strdup(cd->info[n].value.data.string);
+                if (PMIX_STRING == cd->info[n].value.type &&
+                    NULL != cd->info[n].value.data.string && NULL == cd->cmdline) {
+                    cd->cmdline = strdup(cd->info[n].value.data.string);
+                }
 
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_LAUNCHER)) {
                 cd->launcher = PMIX_INFO_TRUE(&cd->info[n]);
