@@ -49,7 +49,7 @@
 
 /* Instantiate the global vars */
 dsched_metric_globals_t dsched_metric_globals = {
-    .actives = PMIX_LIST_STATIC_INIT,
+    .actives = PMIX_LIST_STATIC_INIT(dsched_metric_globals.actives),
     .initialized = false,
     .selected = false
 };
