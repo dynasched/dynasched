@@ -29,7 +29,7 @@ jobs:
         libevent_cppflags=$(pkg-config libevent --cflags)
         libevent_ldflags=$(pkg-config libevent --libs | perl -pe 's/^.*(-L[^ ]+).*$/\1/')
         ./autogen.pl
-        ./configure --prefix=$RUNNER_TEMP/pmixinstall \
+        ./configure --prefix=$RUNNER_TEMP/pmixinstall --with-devel-headers \
             CPPFLAGS=$libevent_cppflags \
             LDFLAGS=$libevent_ldflags
         make -j
@@ -98,7 +98,7 @@ jobs:
       run: |
         cd openpmix/master
         ./autogen.pl
-        ./configure --prefix=$RUNNER_TEMP/pmixinstall
+        ./configure --prefix=$RUNNER_TEMP/pmixinstall --with-devel-headers
         make -j
         make install
     - name: Git clone DynaSched
@@ -147,7 +147,7 @@ jobs:
       run: |
         cd openpmix/master
         ./autogen.pl
-        CC=clang ./configure --prefix=$RUNNER_TEMP/pmixinstall
+        CC=clang ./configure --prefix=$RUNNER_TEMP/pmixinstall --with-devel-headers
         make -j
         make install
     - name: Git clone DynaSched
@@ -165,6 +165,45 @@ jobs:
         c=./configure
         CC=clang $c --prefix=$RUNNER_TEMP/dschedinstall --with-pmix=$RUNNER_TEMP/pmixinstall $sphinx \
             --enable-devel-check
+        make -j
+        make install
+        make uninstall
+
+  # ddlopen outranks dlibltdl, so no other job compiles dlibltdl at all.
+  # Disable ddlopen here so that the fallback component is built.
+  ubuntuLibltdl:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends software-properties-common libhwloc-dev libevent-dev libltdl-dev
+    - name: Git clone OpenPMIx
+      uses: actions/checkout@v3
+      with:
+            submodules: recursive
+            repository: openpmix/openpmix
+            path: openpmix/master
+            ref: master
+    - name: Build OpenPMIx
+      run: |
+        cd openpmix/master
+        ./autogen.pl
+        ./configure --prefix=$RUNNER_TEMP/pmixinstall --with-devel-headers
+        make -j
+        make install
+    - name: Git clone DynaSched
+      uses: actions/checkout@v3
+      with:
+            submodules: recursive
+            clean: false
+    - name: Build DynaSched
+      run: |
+        ./autogen.pl
+        mkdir build
+        cd build
+        ../configure --prefix=$RUNNER_TEMP/dschedinstall --with-pmix=$RUNNER_TEMP/pmixinstall \
+            --disable-dsched-dlopen --enable-devel-check
         make -j
         make install
         make uninstall
@@ -187,7 +226,7 @@ jobs:
       run: |
         cd openpmix/master
         ./autogen.pl
-        ./configure --prefix=$RUNNER_TEMP/pmixinstall
+        ./configure --prefix=$RUNNER_TEMP/pmixinstall --with-devel-headers
         make -j
         make install
     - name: Git clone DynaSched
