@@ -51,6 +51,7 @@
 #include "src/util/pmix_cmd_line.h"
 #include "src/util/pmix_path.h"
 #include "src/util/pmix_show_help.h"
+#include "src/include/pmix_frameworks.h"
 
 #include "src/include/dsched_constants.h"
 #include "src/include/dsched_frameworks.h"
@@ -61,6 +62,17 @@
 #include "src/runtime/dsched_rte.h"
 #include "src/util/dsched_cmd_line.h"
 #include "src/util/dsched_error.h"
+
+/* The project name the component map records DynaSched's components
+ * under, and so the name every lookup in that map must use. It is a key,
+ * not a label: pmix_info_show_component_version() skips every map entry
+ * whose project does not match, so asking for "DynaSched" found nothing
+ * and no report ever listed a single DynaSched component. */
+#define DSCHED_INFO_PROJECT "dsched"
+/* ...and the same for the PMIx half of an --include-pmix report */
+#define DSCHED_INFO_PMIX_PROJECT "pmix"
+
+extern const char *dsched_info_type_all;
 
 static int register_framework_params(pmix_pointer_array_t *component_map)
 {
@@ -79,7 +91,109 @@ static int register_framework_params(pmix_pointer_array_t *component_map)
         return rc;
     }
 
-    return pmix_info_register_project_frameworks("dsched", dsched_frameworks, component_map);
+    return pmix_info_register_project_frameworks(DSCHED_INFO_PROJECT, dsched_frameworks, component_map);
+}
+
+static bool is_pmix_framework(const char *name)
+{
+    int i;
+
+    for (i = 0; NULL != pmix_frameworks[i]; i++) {
+        if (0 == strcmp(name, pmix_frameworks[i]->framework_name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool is_mca_type(pmix_pointer_array_t *mca_types, const char *name)
+{
+    char *type;
+    int i;
+
+    for (i = 0; i < mca_types->size; i++) {
+        type = (char *) pmix_pointer_array_get_item(mca_types, i);
+        if (NULL != type && 0 == strcmp(type, name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Show the MCA parameters selected by --param/--params.
+ *
+ * Each value is "<framework>[:<component>[,<component>...]]", or the
+ * keyword "all"; the option may be repeated. This is done here rather
+ * than by pmix_info_do_params() so that the --include-pmix report can
+ * answer the same request twice, once per project: a framework belongs
+ * to exactly one of them, and the parameter lookup underneath is by
+ * framework name alone, so without this filter the PMIx half would
+ * print DynaSched's parameters again. */
+static void do_params(const char *project, bool pmix_half, bool want_all,
+                      bool want_internal, pmix_pointer_array_t *mca_types,
+                      pmix_pointer_array_t *component_map,
+                      pmix_cli_result_t *results)
+{
+    const char *names[] = {PMIX_CLI_INFO_PARAM, PMIX_CLI_INFO_PARAMS, NULL};
+    pmix_cli_item_t *opt;
+    char **fw, **comps;
+    int n, i, j;
+
+    for (n = 0; !want_all && NULL != names[n]; n++) {
+        opt = pmix_cmd_line_get_param(results, names[n]);
+        if (NULL == opt || NULL == opt->values) {
+            continue;
+        }
+        for (i = 0; NULL != opt->values[i]; i++) {
+            if (0 == strcasecmp(opt->values[i], dsched_info_type_all)) {
+                want_all = true;
+                break;
+            }
+        }
+    }
+    if (want_all) {
+        pmix_info_do_params(project, true, want_internal, mca_types, component_map, results);
+        return;
+    }
+
+    for (n = 0; NULL != names[n]; n++) {
+        opt = pmix_cmd_line_get_param(results, names[n]);
+        if (NULL == opt || NULL == opt->values) {
+            continue;
+        }
+        for (i = 0; NULL != opt->values[i]; i++) {
+            fw = PMIx_Argv_split(opt->values[i], ':');
+            if (NULL == fw || NULL == fw[0] || '\0' == fw[0][0] ||
+                (NULL != fw[1] && NULL != fw[2])) {
+                pmix_show_help("help-dsched_info.txt", "bad-param-value", true,
+                               names[n], opt->values[i]);
+                exit(1);
+            }
+            if (!is_mca_type(mca_types, fw[0])) {
+                pmix_show_help("help-dsched_info.txt", "unknown-framework", true,
+                               fw[0], dsched_globals.basename);
+                exit(1);
+            }
+            if (pmix_half != is_pmix_framework(fw[0])) {
+                // belongs to the other half of the report
+                PMIx_Argv_free(fw);
+                continue;
+            }
+            if (NULL == fw[1] || '\0' == fw[1][0]) {
+                comps = PMIx_Argv_split(pmix_info_component_all, ',');
+            } else {
+                comps = PMIx_Argv_split(fw[1], ',');
+            }
+            for (j = 0; NULL != comps && NULL != comps[j]; j++) {
+                pmix_info_show_component_version(project, mca_types, component_map,
+                                                 fw[0], comps[j], pmix_info_ver_full,
+                                                 pmix_info_ver_all);
+                pmix_info_show_mca_params(fw[0], comps[j], want_internal);
+            }
+            PMIx_Argv_free(comps);
+            PMIx_Argv_free(fw);
+        }
+    }
 }
 
 /*
@@ -110,7 +224,7 @@ static struct option dinfooptions[] = {
     PMIX_OPTION_DEFINE(PMIX_CLI_INFO_PARAM, PMIX_ARG_REQD),
     PMIX_OPTION_DEFINE(PMIX_CLI_INFO_PARAMS, PMIX_ARG_REQD),
     PMIX_OPTION_DEFINE(PMIX_CLI_INFO_PATH, PMIX_ARG_REQD),
-    PMIX_OPTION_DEFINE(PMIX_CLI_INFO_VERSION, PMIX_ARG_REQD),
+    PMIX_OPTION_DEFINE(PMIX_CLI_INFO_VERSION, PMIX_ARG_OPTIONAL),
     PMIX_OPTION_DEFINE(PMIX_CLI_PRETTY_PRINT, PMIX_ARG_NONE),
     PMIX_OPTION_DEFINE(PMIX_CLI_PARSABLE, PMIX_ARG_NONE),
     PMIX_OPTION_DEFINE(PMIX_CLI_PARSEABLE, PMIX_ARG_NONE),
@@ -153,7 +267,10 @@ int main(int argc, char *argv[])
     if (DSCHED_SUCCESS != (ret = dsched_init_util())) {
         pmix_show_help("help-dsched_info.txt", "lib-call-fail", true, "dsched_init_util", __FILE__,
                        __LINE__);
-        exit(ret);
+        /* main() hands the shell only the low eight bits of what it
+         * returns, so a DynaSched or PMIx error code arrives as a
+         * meaningless 251 or 255 - every failure here exits with 1 */
+        exit(1);
     }
 
     /* parse the input argv to get values, including everyone's MCA params */
@@ -168,7 +285,7 @@ int main(int argc, char *argv[])
         if (PMIX_ERR_SILENT != rc) {
             fprintf(stderr, "%s: command line error (%s)\n", dsched_globals.basename, PMIx_Error_string(rc));
         }
-        return rc;
+        return 1;
     }
 
     // we do NOT accept arguments other than our own
@@ -182,7 +299,7 @@ int main(int argc, char *argv[])
                 printf("%s", ptr);
                 free(ptr);
             }
-            return -1;
+            return 1;
         }
         free(str);
     }
@@ -243,9 +360,13 @@ int main(int argc, char *argv[])
     pmix_pointer_array_add(&mca_types, "mca");
     pmix_pointer_array_add(&mca_types, "dsched");
 
-    /* push all the types found by autogen */
+    /* push all the types found by autogen. The dsched framework has the
+     * same name as the project type added above, and a type listed twice
+     * is reported twice, so skip any already present */
     for (i = 0; NULL != dsched_frameworks[i]; i++) {
-        pmix_pointer_array_add(&mca_types, dsched_frameworks[i]->framework_name);
+        if (!is_mca_type(&mca_types, dsched_frameworks[i]->framework_name)) {
+            pmix_pointer_array_add(&mca_types, dsched_frameworks[i]->framework_name);
+        }
     }
 
     if (include_pmix) {
@@ -261,7 +382,7 @@ int main(int argc, char *argv[])
     if (PMIX_SUCCESS != (ret = register_framework_params(&dsched_component_map))) {
         if (PMIX_ERR_BAD_PARAM == ret) {
             /* output what we got */
-            pmix_info_do_params("DynaSched", true, pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_INTERNAL),
+            pmix_info_do_params(DSCHED_INFO_PROJECT, true, pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_INTERNAL),
                                 &mca_types, &dsched_component_map, NULL);
         }
         exit(1);
@@ -271,7 +392,7 @@ int main(int argc, char *argv[])
         /* register params for pmix */
         if (PMIX_SUCCESS != (ret = pmix_register_params())) {
             fprintf(stderr, "pmix_register_params failed with %d\n", ret);
-            return PMIX_ERROR;
+            return 1;
         }
 
 
@@ -279,7 +400,7 @@ int main(int argc, char *argv[])
         if (PMIX_SUCCESS != (ret = pmix_info_register_framework_params(&dsched_component_map))) {
             if (PMIX_ERR_BAD_PARAM == ret) {
                 /* output what we got */
-                pmix_info_do_params("PMIx", true, pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_INTERNAL),
+                pmix_info_do_params(DSCHED_INFO_PMIX_PROJECT, true, pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_INTERNAL),
                                     &mca_types, &dsched_component_map, NULL);
             }
             exit(1);
@@ -296,7 +417,7 @@ int main(int argc, char *argv[])
             pmix_info_show_version("DynaSched", pmix_info_ver_full, DSCHED_MAJOR_VERSION, DSCHED_MINOR_VERSION,
                                    DSCHED_RELEASE_VERSION, DSCHED_GREEK_VERSION, DSCHED_REPO_REV,
                                    DSCHED_RELEASE_DATE);
-            pmix_info_show_component_version("DynaSched", &mca_types, &dsched_component_map, pmix_info_type_all,
+            pmix_info_show_component_version(DSCHED_INFO_PROJECT, &mca_types, &dsched_component_map, pmix_info_type_all,
                                              pmix_info_component_all, pmix_info_ver_full,
                                              pmix_info_ver_all);
 
@@ -305,19 +426,21 @@ int main(int argc, char *argv[])
             pmix_info_show_version("DynaSched", pmix_info_ver_full, DSCHED_MAJOR_VERSION, DSCHED_MINOR_VERSION,
                                     DSCHED_RELEASE_VERSION, DSCHED_GREEK_VERSION, DSCHED_REPO_REV,
                                     DSCHED_RELEASE_DATE);
-            pmix_info_show_component_version("DynaSched", &mca_types, &dsched_component_map, pmix_info_type_all,
+            pmix_info_show_component_version(DSCHED_INFO_PROJECT, &mca_types, &dsched_component_map, pmix_info_type_all,
                                              pmix_info_component_all, pmix_info_ver_full,
                                              pmix_info_ver_all);
 
         } else {
             if (0 == strcasecmp(opt->values[0], "dsched") ||
                 0 == strcasecmp(opt->values[0], "all")) {
+                // an optional second argument selects the part of the version
+                const char *modifier = (NULL != opt->values[1]) ? opt->values[1] : pmix_info_ver_full;
                 pmix_info_show_package(DSCHED_PACKAGE_STRING);
-                pmix_info_show_version("DynaSched", pmix_info_ver_full, DSCHED_MAJOR_VERSION, DSCHED_MINOR_VERSION,
+                pmix_info_show_version("DynaSched", modifier, DSCHED_MAJOR_VERSION, DSCHED_MINOR_VERSION,
                                        DSCHED_RELEASE_VERSION, DSCHED_GREEK_VERSION, DSCHED_REPO_REV,
                                        DSCHED_RELEASE_DATE);
-                pmix_info_show_component_version("DynaSched", &mca_types, &dsched_component_map, pmix_info_type_all,
-                                                 pmix_info_component_all, pmix_info_ver_full,
+                pmix_info_show_component_version(DSCHED_INFO_PROJECT, &mca_types, &dsched_component_map, pmix_info_type_all,
+                                                 pmix_info_component_all, modifier,
                                                  pmix_info_ver_all);
 
             } else {
@@ -331,7 +454,7 @@ int main(int argc, char *argv[])
                 if (NULL != opt->values[1]) {
                     modifier = opt->values[1];
                 }
-                pmix_info_show_component_version("DynaSched", &mca_types, &dsched_component_map, tmp[0],
+                pmix_info_show_component_version(DSCHED_INFO_PROJECT, &mca_types, &dsched_component_map, tmp[0],
                                                  component, modifier,
                                                  pmix_info_ver_all);
                 PMIx_Argv_free(tmp);
@@ -368,8 +491,11 @@ int main(int argc, char *argv[])
 
     if (want_all || pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_PARAM) ||
         pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_PARAMS)) {
-        pmix_info_do_params("DynaSched", true, pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_INTERNAL),
-                            &mca_types, &dsched_component_map, &results);
+        /* passing want_all through, rather than "true", is what lets
+         * "--param dsched:fifo" show dsched:fifo instead of everything */
+        do_params(DSCHED_INFO_PROJECT, false, want_all,
+                  pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_INTERNAL),
+                  &mca_types, &dsched_component_map, &results);
         acted = true;
     }
 
@@ -393,7 +519,7 @@ int main(int argc, char *argv[])
                             PLATFORM_STRINGIFY(PLATFORM_COMPILER_VERSION_STR), DSCHED_BUILD_CFLAGS, DSCHED_BUILD_LDFLAGS,
                             DSCHED_BUILD_LIBS, DSCHED_ENABLE_DEBUG, PMIX_HAVE_PDL_SUPPORT,
                             DSCHED_C_HAVE_VISIBILITY);
-        pmix_info_show_component_version("DynaSched", &mca_types, &dsched_component_map, pmix_info_type_all,
+        pmix_info_show_component_version(DSCHED_INFO_PROJECT, &mca_types, &dsched_component_map, pmix_info_type_all,
                                          pmix_info_component_all, pmix_info_ver_full,
                                          pmix_info_ver_all);
     }
@@ -407,28 +533,23 @@ int main(int argc, char *argv[])
             if (NULL == opt) {
                 pmix_info_show_pmix_package();
                 pmix_info_show_pmix_version();
-                pmix_info_show_component_version("PMIx", &mca_types, &dsched_component_map, pmix_info_type_all,
+                pmix_info_show_component_version(DSCHED_INFO_PMIX_PROJECT, &mca_types, &dsched_component_map, pmix_info_type_all,
                                                  pmix_info_component_all, pmix_info_ver_full,
                                                  pmix_info_ver_all);
 
             } else if (NULL == opt->values) {
                 pmix_info_show_pmix_package();
                 pmix_info_show_pmix_version();
-                pmix_info_show_component_version("PMIx", &mca_types, &dsched_component_map, pmix_info_type_all,
+                pmix_info_show_component_version(DSCHED_INFO_PMIX_PROJECT, &mca_types, &dsched_component_map, pmix_info_type_all,
                                                  pmix_info_component_all, pmix_info_ver_full,
                                                  pmix_info_ver_all);
-                if (include_pmix) {
-                    pmix_info_show_component_version("PMIx", &mca_types, &dsched_component_map, pmix_info_type_all,
-                                                     pmix_info_component_all, pmix_info_ver_full,
-                                                     pmix_info_ver_all);
-                }
 
             } else {
                 if (0 == strcasecmp(opt->values[0], "pmix") ||
                     0 == strcasecmp(opt->values[0], "all")) {
                     pmix_info_show_pmix_package();
                     pmix_info_show_pmix_version();
-                    pmix_info_show_component_version("PMIx", &mca_types, &dsched_component_map, pmix_info_type_all,
+                    pmix_info_show_component_version(DSCHED_INFO_PMIX_PROJECT, &mca_types, &dsched_component_map, pmix_info_type_all,
                                                      pmix_info_component_all, pmix_info_ver_full,
                                                      pmix_info_ver_all);
 
@@ -443,7 +564,7 @@ int main(int argc, char *argv[])
                     if (NULL != opt->values[1]) {
                         modifier = opt->values[1];
                     }
-                    pmix_info_show_component_version("PMIx", &mca_types, &dsched_component_map, tmp[0],
+                    pmix_info_show_component_version(DSCHED_INFO_PMIX_PROJECT, &mca_types, &dsched_component_map, tmp[0],
                                                      component, modifier,
                                                      pmix_info_ver_all);
 
@@ -476,8 +597,9 @@ int main(int argc, char *argv[])
 
         if (want_all || pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_PARAM) ||
             pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_PARAMS)) {
-             pmix_info_do_params("PMIx", true, pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_INTERNAL),
-                                &mca_types, &dsched_component_map, &results);
+            do_params(DSCHED_INFO_PMIX_PROJECT, true, want_all,
+                      pmix_cmd_line_is_taken(&results, PMIX_CLI_INFO_INTERNAL),
+                      &mca_types, &dsched_component_map, &results);
             acted = true;
         }
 
@@ -494,7 +616,7 @@ int main(int argc, char *argv[])
             pmix_info_show_path(pmix_info_path_prefix, pmix_pinstall_dirs.prefix);
             pmix_info_do_arch();
             pmix_info_do_pmix_config(want_all);
-            pmix_info_show_component_version("PMIx", &mca_types, &dsched_component_map, pmix_info_type_all,
+            pmix_info_show_component_version(DSCHED_INFO_PMIX_PROJECT, &mca_types, &dsched_component_map, pmix_info_type_all,
                                              pmix_info_component_all, pmix_info_ver_full,
                                              pmix_info_ver_all);
         }

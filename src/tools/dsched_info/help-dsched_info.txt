@@ -73,14 +73,15 @@ option to the help request as "--help <option>".
 |                      | "bindir", "libdir", "incdir", "mandir",       |
 |                      | "pkglibdir", "sysconfdir".                    |
 +----------------------+-----------------------------------------------+
-| "--show-version      | Show version of DynaSched or a component.  The|
-| <type>:<part>"       | first parameter can be the keywords "dsched", |
-|                      | "all", or a framework name (indicating all    |
-|                      | components in a framework), or a              |
-|                      | "framework:component" string (indicating a    |
-|                      | specific component).  The second parameter    |
-|                      | can be one of: "full", "major", "minor",      |
-|                      | "release", "greek", "git".                    |
+| "--show-version      | Show version of DynaSched or of components.   |
+| [<what> [<part>]]"   | The first argument is "dsched", "all", a      |
+|                      | framework name (all components in that        |
+|                      | framework), or "framework:component". The     |
+|                      | optional second argument selects the part of  |
+|                      | the version: "full" (default), "major",       |
+|                      | "minor", "release", "greek", "repo". With no  |
+|                      | argument, show DynaSched's version and every  |
+|                      | component's.                                  |
 +----------------------+-----------------------------------------------+
 | "--include-pmix"     | Include PMIx params and build info in output  |
 +----------------------+-----------------------------------------------+
@@ -167,6 +168,23 @@ show this message to a DynaSched developer:
    Library call: %s Source file: %s Source line number: %d
 
 Aborting...
+#
+[bad-param-value]
+
+The "--%s" option was given a value it cannot interpret:
+
+   Value: %s
+
+The expected form is "<framework>[:<component>[,<component>...]]"
+(e.g., "dsched" or "dsched:fifo"), or the keyword "all".
+#
+[unknown-framework]
+
+There is no framework or parameter type named "%s" in this
+installation, so there are no parameters to show for it.
+
+Run "%s --all" for the list of components and the frameworks they
+belong to.
 #
 [no-args]
 

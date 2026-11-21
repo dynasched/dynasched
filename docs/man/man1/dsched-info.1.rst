@@ -71,12 +71,13 @@ OPTIONS
   with. Accepts the following parameters: ``all``, ``prefix``, ``bindir``,
   ``libdir``, ``incdir``, ``mandir``, ``pkglibdir``, ``sysconfdir``.
 
-* ``--show-version <type>[:<component>] [<part>]``: Show the version of
-  DynaSched or of its components. ``type`` is ``dsched`` or ``all`` for
-  DynaSched itself, a framework name for every component in that
-  framework, or ``framework:component`` for one component. ``part`` is
-  one of ``full`` (the default), ``major``, ``minor``, ``release``,
-  ``greek`` or ``git``.
+* ``--show-version [<what> [<part>]]``: Show the version of DynaSched or
+  of its components. ``what`` is ``dsched`` or ``all`` for DynaSched
+  itself and every component, a framework name for every component in
+  that framework, or ``framework:component`` for one component.
+  ``part`` is one of ``full`` (the default), ``major``, ``minor``,
+  ``release``, ``greek`` or ``repo``. With no argument, show
+  DynaSched's version and every component's.
 
 * ``-t`` | ``--type <type>``: Show the MCA parameters of the given
   value type (for example ``string`` or ``int``).
