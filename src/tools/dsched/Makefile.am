@@ -45,7 +45,8 @@ dsched_SOURCES =  \
         server.c \
         backend.c \
         session.c \
-        queries.c
+        queries.c \
+        job_ctrl.c
 
 dsched_LDADD = \
     $(dsched_libevent_LIBS) \
