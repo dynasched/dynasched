@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
     dsched_globals.basename = pmix_basename(argv[0]);
     if (DSCHED_SUCCESS != (ret = dsched_init_util())) {
         pmix_show_help("help-dsched_info.txt", "lib-call-fail", true, "dsched_init_util", __FILE__,
-                       __LINE__, NULL);
+                       __LINE__);
         exit(ret);
     }
 

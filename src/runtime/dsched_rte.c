@@ -314,7 +314,7 @@ int dsched_init_util(void)
 
 error:
     if (DSCHED_ERR_SILENT != ret) {
-        pmix_show_help("help-dsched-runtime", "dsched_init:startup:internal-failure", true, error,
+        pmix_show_help("help-dsched-runtime.txt", "dsched_init:startup:internal-failure", true, error,
                        DSCHED_ERROR_NAME(ret), ret);
     }
 

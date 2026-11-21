@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
         str = PMIx_Argv_join(results.tail, ' ');
         if (0 != strcmp(str, pargv[0])) {
             char *ptr;
-            ptr = pmix_show_help_string("help-dsched_info.txt", "no-args", false,
+            ptr = pmix_show_help_string("help-dsched.txt", "no-args", false,
                                         dsched_globals.basename, str, dsched_globals.basename);
             free(str);
             if (NULL != ptr) {
@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
     /* Register all global MCA Params */
     if (DSCHED_SUCCESS != (ret = dsched_register_params())) {
         if (DSCHED_ERR_SILENT != ret) {
-            pmix_show_help("help-dsched-runtime", "dsched_init:startup:internal-failure", true,
+            pmix_show_help("help-dsched-runtime.txt", "dsched_init:startup:internal-failure", true,
                            "dsched register params",
                            DSCHED_ERROR_NAME(ret), ret);
         }
@@ -532,7 +532,7 @@ int main(int argc, char *argv[])
     /* create the directory tree */
     ret = dsched_session_dir_init();
     if (DSCHED_SUCCESS != ret) {
-        pmix_show_help("help-dsched-runtime",
+        pmix_show_help("help-dsched-runtime.txt",
                        "dsched_init:startup:internal-failure", true,
                        "session_dir", DSCHED_ERROR_NAME(ret), ret);
         DSCHED_UPDATE_EXIT_STATUS(ret);
@@ -583,7 +583,7 @@ int main(int argc, char *argv[])
 
 DONE:
     if (DSCHED_ERR_SILENT != ret && NULL != error) {
-        pmix_show_help("help-dsched-runtime", "dsched_init:startup:internal-failure", true,
+        pmix_show_help("help-dsched-runtime.txt", "dsched_init:startup:internal-failure", true,
                        error, DSCHED_ERROR_NAME(ret), ret);
     }
 

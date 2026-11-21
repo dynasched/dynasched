@@ -192,3 +192,13 @@ Examples:
    dsched --controller ns:prte-node1-2095
 
    dsched --controller pid:file:prte_pid.txt
+#
+[no-args]
+
+The %s command does not accept arguments other than those specifically
+defined by the command. The following were not recognized:
+
+   Args: %s
+
+Please see "%s --help" for a description of all accepted command
+options.
