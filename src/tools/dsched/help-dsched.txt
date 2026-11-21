@@ -67,9 +67,10 @@ option to the help request as "--help <option>".
 | "--report-uri <arg>"   | Print out URI on stdout ("-"), stderr ("+"),  |
 |                        | or a file (anything else)                     |
 +------------------------+-----------------------------------------------+
-| "--controller <arg>"   | The argument indicates the PID, URI, file     |
-|                        | containing the URI, or namespace of the       |
-|                        | of the system controller                      |
+| "--controller <arg>"   | Connect to the given system controller, named |
+|                        | by "pid:", "file:", "uri:" or "ns:", or       |
+|                        | "system" / "system-first" (see "--help        |
+|                        | controller")                                  |
 +------------------------+-----------------------------------------------+
 
 
@@ -192,6 +193,18 @@ Examples:
    dsched --controller ns:prte-node1-2095
 
    dsched --controller pid:file:prte_pid.txt
+#
+[bad-controller]
+
+The value given to "--controller" cannot be used:
+
+   Value:  %s
+   Reason: %s
+
+The value names the system controller in one of these forms:
+"pid:<pid>", "pid:file:<path>", "file:<path>", "uri:<uri>",
+"uri:file:<path>", "ns:<namespace>", "system" or "system-first".
+See "dsched --help controller" for what each means.
 #
 [no-args]
 
