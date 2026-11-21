@@ -43,7 +43,7 @@ dsched_dsched_base_component_t dsched_mca_dsched_fifo_component = {
     /* Handle the general mca_component_t struct containing
      *  meta information about the component sched
      */
-    DSCHED_DSCHED_BASE_VERSION_1_0_0,
+    DSCHED_MCA_BASE_VERSION(dsched),
     /* Component name and version */
     .pmix_mca_component_name = "fifo",
     PMIX_MCA_BASE_MAKE_VERSION(component,

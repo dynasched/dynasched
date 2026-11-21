@@ -24,7 +24,7 @@ static pmix_status_t component_query(pmix_mca_base_module_t **module, int *prior
  */
 dsched_dlog_base_component_t dsched_mca_dlog_stdfd_component = {
 
-    DSCHED_DLOG_BASE_VERSION_1_0_0,
+    DSCHED_MCA_BASE_VERSION(dlog),
     .pmix_mca_component_name = "stdfd",
     PMIX_MCA_BASE_MAKE_VERSION(component,
                                DSCHED_MAJOR_VERSION,

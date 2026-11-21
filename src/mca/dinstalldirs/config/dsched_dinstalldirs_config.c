@@ -19,7 +19,7 @@ const dsched_dinstalldirs_base_component_t dsched_mca_dinstalldirs_config_compon
     /* First, the mca_component_t struct containing meta information
        about the component itself */
     .component = {
-        DSCHED_DINSTALLDIRS_BASE_VERSION_1_0_0,
+        DSCHED_MCA_BASE_VERSION(dinstalldirs),
 
         /* Component name and version */
         "config", DSCHED_MAJOR_VERSION, DSCHED_MINOR_VERSION, DSCHED_RELEASE_VERSION,

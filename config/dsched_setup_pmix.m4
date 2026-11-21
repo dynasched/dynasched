@@ -124,6 +124,29 @@ AC_DEFUN([DSCHED_CHECK_PMIX],[
     AC_CHECK_HEADER([src/util/pmix_argv.h], [],
                     [AC_MSG_ERROR([Could not find PMIx devel headers.  Can not continue.])])
 
+    dnl Every DynaSched framework states the interface version its
+    dnl components are built against, and it does so through PMIx's
+    dnl machinery: the framework declaration expands to
+    dnl PMIX_MCA_BASE_FRAMEWORK_DECLARE_FULL and each component stamps
+    dnl PMIX_MCA_BASE_VERSION_2_1_0.  Both arrived within the PMIx 7.0
+    dnl development series, so the version floor does not screen out an
+    dnl install that predates them.  There is nothing to fall back to - the
+    dnl version fields live in PMIx's framework struct, and PMIx's
+    dnl component-open is what compares them - so this is a requirement.
+    dnl
+    dnl Ask here because the failure otherwise lands nowhere near its cause:
+    dnl against an older PMIx the build stops with an error pointing at
+    dnl whichever framework header compiled first.
+    AC_MSG_CHECKING([for PMIx versioned framework declaration])
+    DSCHED_CHECK_PMIX_CAP([MCA_FW_VERSION],
+                          [AC_MSG_RESULT([yes])],
+                          [AC_MSG_RESULT([no])
+                           AC_MSG_WARN([DynaSched states each framework's interface version through])
+                           AC_MSG_WARN([PMIX_MCA_BASE_FRAMEWORK_DECLARE_FULL and the])
+                           AC_MSG_WARN([PMIX_MCA_BASE_VERSION_2_1_0 component stamp, which this])
+                           AC_MSG_WARN([PMIx does not provide.])
+                           AC_MSG_ERROR([Please update PMIx and configure again])])
+
     # restore the global flags
     CPPFLAGS=$dsched_external_pmix_save_CPPFLAGS
 

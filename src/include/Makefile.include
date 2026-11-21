@@ -36,7 +36,8 @@ headers += \
         include/dsched_portable_platform_real.h \
         include/dsched_stdint.h \
         include/dsched_stdatomic.h \
-        include/dsched_globals.h
+        include/dsched_globals.h \
+        include/dsched_mca.h
 
 nodist_headers += \
         include/dsched_config.h \

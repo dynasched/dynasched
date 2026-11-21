@@ -97,9 +97,9 @@ static pmix_status_t dsched_dmetric_base_open(pmix_mca_base_open_flag_t flags)
     return pmix_mca_base_framework_components_open(&dsched_dmetric_base_framework, flags);
 }
 
-PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dmetric, "DynaSched metric plugins", NULL, dsched_dmetric_base_open,
-                                dsched_dmetric_base_close, dsched_mca_dmetric_base_static_components,
-                                PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
+DSCHED_MCA_BASE_FRAMEWORK_DECLARE(dmetric, "DynaSched metric plugins", NULL, dsched_dmetric_base_open,
+                                  dsched_dmetric_base_close, dsched_mca_dmetric_base_static_components,
+                                  PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 pmix_status_t dsched_metric_base_compute(pmix_list_t *data)
 {

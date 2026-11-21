@@ -160,8 +160,8 @@ static int dsched_dinstalldirs_base_close(void)
 }
 
 /* Declare the dinstalldirs framework */
-PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dinstalldirs, NULL, NULL, dsched_dinstalldirs_base_open,
-                                dsched_dinstalldirs_base_close,
-                                dsched_mca_dinstalldirs_base_static_components,
-                                PMIX_MCA_BASE_FRAMEWORK_FLAG_NOREGISTER
+DSCHED_MCA_BASE_FRAMEWORK_DECLARE(dinstalldirs, NULL, NULL, dsched_dinstalldirs_base_open,
+                                  dsched_dinstalldirs_base_close,
+                                  dsched_mca_dinstalldirs_base_static_components,
+                                  PMIX_MCA_BASE_FRAMEWORK_FLAG_NOREGISTER
                                     | PMIX_MCA_BASE_FRAMEWORK_FLAG_NO_DSO);

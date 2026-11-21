@@ -97,9 +97,9 @@ static pmix_status_t dsched_dlog_base_open(pmix_mca_base_open_flag_t flags)
     return pmix_mca_base_framework_components_open(&dsched_dlog_base_framework, flags);
 }
 
-PMIX_MCA_BASE_FRAMEWORK_DECLARE(dsched, dlog, "DynaSched log plugins", NULL, dsched_dlog_base_open,
-                                dsched_dlog_base_close, dsched_mca_dlog_base_static_components,
-                                PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
+DSCHED_MCA_BASE_FRAMEWORK_DECLARE(dlog, "DynaSched log plugins", NULL, dsched_dlog_base_open,
+                                  dsched_dlog_base_close, dsched_mca_dlog_base_static_components,
+                                  PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 pmix_status_t dsched_log_base_log(pmix_list_t *data)
 {

@@ -25,7 +25,7 @@ dsched_dinstalldirs_base_component_t dsched_mca_dinstalldirs_env_component = {
     /* First, the mca_component_t struct containing meta information
        about the component itself */
     .component = {
-        DSCHED_DINSTALLDIRS_BASE_VERSION_1_0_0,
+        DSCHED_MCA_BASE_VERSION(dinstalldirs),
 
         /* Component name and version */
         "env",
