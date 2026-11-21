@@ -30,7 +30,7 @@ autoconf_min_version=2.69.0
 libtool_min_version=2.4.2
 flex_min_version=2.5.4
 python_min_version=3.6
-pmix_min_version=6.1.0
+pmix_min_version=7.0.0
 pmix_max_version=1000.0.0
 
 # If repo_rev is empty, then the repository version number will be
