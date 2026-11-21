@@ -87,7 +87,7 @@ Selection follows standard MCA priority rules: the highest-priority component th
 
 ## DynaSched's Relationship with PMIx
 
-DynaSched depends on PMIx (minimum version 6.1.0) and uses PMIx internals directly — this is distinct from calling the PMIx public API.
+DynaSched depends on PMIx (minimum version 7.0.0) and uses PMIx internals directly — this is distinct from calling the PMIx public API.
 
 **From PMIx, DynaSched uses:**
 - MCA infrastructure (`src/mca/base/pmix_base.h`, `src/mca/mca.h`)
@@ -260,7 +260,7 @@ make install
 
 | Dependency | Minimum |
 |------------|---------|
-| PMIx | 6.1.0 |
+| PMIx | 7.0.0 |
 | hwloc | 2.1.0 |
 | libevent | 2.0.21 |
 | autoconf | 2.69.0 |
