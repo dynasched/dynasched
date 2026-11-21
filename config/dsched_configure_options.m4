@@ -33,14 +33,16 @@ AC_DEFUN([DSCHED_CONFIGURE_OPTIONS],[
 dsched_show_subtitle "DYNASCHED Configuration options"
 
 # A hint to tell us if we are working with a build from Git or a tarball.
-# Helpful when preparing diagnostic output.
-if test -e $DSCHED_TOP_SRCDIR/.git; then
+# In a git worktree, .git is a file pointing at the real git dir, not a
+# directory, so check for both.
+if test -d ${DSCHED_TOP_SRCDIR}/.git || test -f ${DSCHED_TOP_SRCDIR}/.git; then
     AC_DEFINE_UNQUOTED([DSCHED_GIT_REPO_BUILD], ["1"],
                        [If built from a git repo])
     dsched_git_repo_build=yes
 else
     dsched_git_repo_build=no
 fi
+AM_CONDITIONAL([DSCHED_DEVEL_BUILD], [test "$dsched_git_repo_build" = "yes"])
 
 
 #

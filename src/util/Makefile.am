@@ -50,7 +50,18 @@ sources = \
         dsched_daemon_init.c \
         dsched_session_dir.c
 
-dsched_show_help_content.c: dsched-convert-help.py
+# In a git clone, regenerate the show_help content on every make so that
+# an edit to any help-*.txt file is picked up without having to remove
+# the generated file by hand.  The converter rewrites its output only
+# when the content changes, so an untouched tree does not recompile.  A
+# tarball ships the generated file and does not regenerate it.
+if DSCHED_DEVEL_BUILD
+dsched_show_help_deps = FORCE
+else
+dsched_show_help_deps = dsched-convert-help.py
+endif
+
+dsched_show_help_content.c: $(dsched_show_help_deps)
 if DSCHED_PICKY_COMPILERS
 	$(DSCHED_V_GEN) $(PYTHON) $(abs_srcdir)/dsched-convert-help.py \
 		--root $(abs_top_srcdir) \
@@ -62,14 +73,22 @@ else
 		--out dsched_show_help_content.c
 endif
 
+FORCE:
+
 libdschedutil_la_SOURCES = $(headers) $(sources)
 
-
-clean-local:
-	rm -f dsched_show_help_content.c dsched_show_help_content.lo
+# Cross-check the help files against the show_help calls.  The generation
+# rule above performs the same check in a picky build, but outside a
+# developer build it depends only on the converter script, so editing a
+# help file or a show_help call does not re-run it - hook the check into
+# "make check" as well, where it runs every time.
+check-local:
+	$(PYTHON) $(abs_srcdir)/dsched-convert-help.py \
+		--root $(abs_top_srcdir) \
+		--check-only
 
 MAINTAINERCLEANFILES = \
 	dsched_show_help_content.c
-
-distclean-local:
-	rm -f dsched_show_help_content.c
+if DSCHED_DEVEL_BUILD
+CLEANFILES += dsched_show_help_content.c
+endif

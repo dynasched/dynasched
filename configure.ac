@@ -707,10 +707,11 @@ AC_INCLUDES_DEFAULT
 #endif])
 
 # We need Python if we are building in a git clone
-# (not a distribution tarball)
+# (not a distribution tarball).  In a git worktree, .git is a file
+# rather than a directory, so test only that it exists.
 AC_MSG_CHECKING([if we need Python])
 dsched_need_python=no
-AS_IF([test -d "${DSCHED_TOP_SRCDIR}/.git"],
+AS_IF([test -e "${DSCHED_TOP_SRCDIR}/.git"],
       [dsched_need_python=yes],
       [dsched_need_python=no])
 AC_MSG_RESULT([$dsched_need_python])
