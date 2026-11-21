@@ -238,7 +238,7 @@ A completion callback whose only job is to record a status and wake a `pmix_lock
 2. A second signal, if that abort has not finished, warns that another signal will force termination.
 3. A third signal forces termination from the signal handler itself.
 
-Under `--keepalive`, the first signal is ignored, because the pipe decides when `dsched` goes; the second and third behave as above. Every way out removes the `--report-pid` file. The sequence is documented for users in `dsterm(1)`; keep the two in step.
+Under `--keepalive`, the first signal is ignored, because the pipe decides when `dsched` goes; the second and third behave as above. Every way out removes the `--report-pid` file. The sequence is documented for users in `dsched(1)` (`docs/man/man1/dsched.1.rst`); keep the two in step.
 
 ### Thread-Shifting with Caddies
 
