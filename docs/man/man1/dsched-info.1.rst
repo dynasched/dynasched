@@ -1,22 +1,22 @@
-.. _man1-dsched_info:
+.. _man1-dsched-info:
 
-dsched_info
+dsched-info
 ===========
 
 .. include_body
 
-dsched_info |mdash| Display information about the DynaSched installation
+dsched-info |mdash| Display information about the DynaSched installation
 
 SYNOPSIS
 --------
 
-``dsched_info [options]``
+``dsched-info [options]``
 
 
 DESCRIPTION
 -----------
 
-``dsched_info`` provides detailed information about the DynaSched
+``dsched-info`` provides detailed information about the DynaSched
 installation. It can be useful for at least three common scenarios:
 
 #. Checking local configuration and seeing how DynaSched was installed.
@@ -27,11 +27,10 @@ installation. It can be useful for at least three common scenarios:
 #. Seeing a list of installed DynaSched plugins and querying what MCA
    parameters they support.
 
-
 OPTIONS
 -------
 
-``dsched_info`` accepts the following options:
+``dsched-info`` accepts the following options:
 
 * ``-h`` | ``--help <arg0>``: Show help message. If the optional
   argument is not provided, then a generalized help message similar
@@ -42,6 +41,12 @@ OPTIONS
 * ``-v`` | ``--verbose``: Enable debug output.
 
 * ``-V`` | ``--version``: Print version and exit.
+
+* ``--dmca <key> <value>`` | ``--mca <key> <value>``: Set the DynaSched
+  MCA parameter ``key`` to ``value`` for this run.
+
+* ``--pmixmca <key> <value>``: Set the PMIx MCA parameter ``key`` to
+  ``value`` for this run.
 
 * ``-a`` | ``--all``: Show all configuration options and MCA
   parameters.
@@ -56,14 +61,28 @@ OPTIONS
 * ``--internal``: Show internal MCA parameters (not meant to be
   modified by users).
 
-* ``--param <arg0>:<arg1>,<arg2>``: Show MCA parameters.  The first
-  parameter is the framework (or the keyword "all"); the second parameter
-  is a comma-delimited list of specific component names (if only <arg0>
-  is given, then all components will be reported).
+* ``--param <framework>[:<component>,<component>...]`` |
+  ``--params ...``: Show MCA parameters. The framework may be the
+  keyword ``all``. Components are named as a comma-delimited list
+  after a colon; if none are given, the parameters of every component
+  in the framework are reported.
 
 * ``--path <type>``: Show paths that DynaSched was configured
   with. Accepts the following parameters: ``all``, ``prefix``, ``bindir``,
-  ``libdir``, ``incdir``, ``pkglibdir``, ``sysconfdir``.
+  ``libdir``, ``incdir``, ``mandir``, ``pkglibdir``, ``sysconfdir``.
+
+* ``--show-version <type>[:<component>] [<part>]``: Show the version of
+  DynaSched or of its components. ``type`` is ``dsched`` or ``all`` for
+  DynaSched itself, a framework name for every component in that
+  framework, or ``framework:component`` for one component. ``part`` is
+  one of ``full`` (the default), ``major``, ``minor``, ``release``,
+  ``greek`` or ``git``.
+
+* ``-t`` | ``--type <type>``: Show the MCA parameters of the given
+  value type (for example ``string`` or ``int``).
+
+* ``--include-pmix``: Also show the PMIx build information and MCA
+  parameters.
 
 * ``--pretty-print``: When used in conjunction with other parameters, the output is
   displayed in "prettyprint" format (default)
@@ -95,33 +114,33 @@ components in a human-readable / prettyprint format:
 
 .. code-block::
 
-   dsched_info
+   dsched-info
 
 Show the default output of options and listing of installed components
 in a machine-parsable format:
 
 .. code-block::
 
-   dsched_info --parsable
+   dsched-info --parsable
 
-Show the MCA parameters of the "fifo" SCHED component in a
-human-readable / prettyprint format:
+Show the MCA parameters of the ``fifo`` component of the ``dsched``
+framework in a human-readable / prettyprint format:
 
 .. code-block::
 
-   dsched_info --param fifo sched
+   dsched-info --param dsched:fifo
 
 Show the "bindir" that DynaSched was configured with:
 
 .. code-block::
 
-   dsched_info --path bindir
+   dsched-info --path bindir
 
 Show the version of DynaSched version numbers in a prettyprint format:
 
 .. code-block::
 
-   dsched_info --version
+   dsched-info --version
 
 Show *all* information about the DynaSched installation, including all
 components that can be found, all the MCA parameters that they support,
@@ -129,7 +148,7 @@ versions of DynaSched and the components, etc.:
 
 .. code-block::
 
-   dsched_info --all
+   dsched-info --all
 
 .. seealso::
    :ref:`dynasched(7) <man7-dynasched>`

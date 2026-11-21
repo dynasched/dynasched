@@ -48,7 +48,7 @@ customize include the following:
 
 There are multiple frameworks within DynaSched; the exact set varies
 between different versions of DynaSched.  You can use the
-:ref:`dsched_info(1) <man1-dsched_info>` command to see the full list of
+:ref:`dsched-info(1) <man1-dsched-info>` command to see the full list of
 frameworks that are included in DynaSched |dsched_ver|.
 
 Components
@@ -65,7 +65,7 @@ at run-time and/or compile-time.
 The exact set of components varies between different versions of DynaSched.
 DynaSched's code base includes support for many components, but
 not all of them may be present or available on your system.  You can
-use the :ref:`dsched_info(1) <man1-dsched_info>` command to see what
+use the :ref:`dsched-info(1) <man1-dsched-info>` command to see what
 components are included in DynaSched |dsched_ver| on your system.
 
 Modules
@@ -258,12 +258,12 @@ Common MCA parameters
 ---------------------
 
 DynaSched has a *large* number of MCA parameters available.  Users can
-use the :ref:`dsched_info(1) <man1-dsched_info>` command to see *all*
+use the :ref:`dsched-info(1) <man1-dsched-info>` command to see *all*
 available MCA parameters.
 
 The vast majority of these MCA parameters, however, are not useful to
 most users.  Although the full list of MCA parameters can be found in the output of
-``dsched_info(1)``, the following list of commonly-used parameters is
+``dsched-info(1)``, the following list of commonly-used parameters is
 presented here so that they can easily be found via internet searches:
 
 * Individual framework names with the ``_base_verbose`` suffix
