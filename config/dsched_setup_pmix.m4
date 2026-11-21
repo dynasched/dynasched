@@ -70,7 +70,7 @@ AC_DEFUN([DSCHED_CHECK_PMIX],[
 
     dnl Need to explicitly enable wrapper compiler to get the dependent libraries
     dnl when pkg-config is not available.
-    PMIX_USE_WRAPPER_COMPILER=1
+    pmix_USE_WRAPPER_COMPILER=1
     OAC_CHECK_PACKAGE([pmix],
                       [dsched_pmix],
                       [pmix.h],
