@@ -54,7 +54,7 @@ dsched_dmeta_module_t dsched_dmeta_pri_module = {
 };
 
 // local variables
-dsched_event_base_t *evbase;
+static dsched_event_base_t *evbase;
 
 static int myinit(void)
 {
