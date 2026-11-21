@@ -44,6 +44,9 @@ option to the help request as "--help <option>".
 | "--mca <key>         | Pass context-specific MCA parameters          |
 | <value>"             | ("key" is the parameter name; "value" is the  |
 |                      | parameter value)                              |
++----------------------+-----------------------------------------------+
+| "--dmca <key>        | Synonym for "--mca"                           |
+| <value>"             |                                               |
 |======================|===============================================|
 | "-a" | "--all"       | Show all configuration options and MCA        |
 |                      | parameters                                    |
@@ -71,7 +74,7 @@ option to the help request as "--help <option>".
 |                      | "pkglibdir", "sysconfdir".                    |
 +----------------------+-----------------------------------------------+
 | "--show-version      | Show version of DynaSched or a component.  The|
-| <type>:<part>"       | first parameter can be the keywords "prte",   |
+| <type>:<part>"       | first parameter can be the keywords "dsched", |
 |                      | "all", or a framework name (indicating all    |
 |                      | components in a framework), or a              |
 |                      | "framework:component" string (indicating a    |
@@ -93,18 +96,25 @@ and "value" is the parameter value.
 #
 [mca]
 
-Pass a DynaSched MCA parameter
+Pass a DynaSched MCA parameter (synonym for "dmca")
 
-Syntax: "--prtemca <key> <value>", where "key" is the parameter name
+Syntax: "--mca <key> <value>", where "key" is the parameter name
+and "value" is the parameter value.
+#
+[dmca]
+
+Pass a DynaSched MCA parameter (synonym for "mca")
+
+Syntax: "--dmca <key> <value>", where "key" is the parameter name
 and "value" is the parameter value.
 #
 [param]
 
-Syntax: "--param <arg0> <arg1>"
+Syntax: "--param <framework>[:<component1>,<component2>,...]"
 
-Show MCA parameters.  The first parameter is the framework (or the
-keyword "all"); the second parameter is the specific component name
-(or the keyword "all").
+Show MCA parameters.  The framework may be the keyword "all".  Name
+components as a comma-delimited list after a colon; if none are given,
+the parameters of every component in the framework are shown.
 #
 [internal]
 
