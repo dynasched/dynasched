@@ -79,7 +79,8 @@ EXTRA_DIST         = \
 # explicitly listed.
 
 DSCHED_MAN1 = \
-        dsched-info.1
+        dsched-info.1 \
+        dsterm.1
 
 DSCHED_MAN3 =
 

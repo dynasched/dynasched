@@ -48,6 +48,7 @@ Repository: https://github.com/dynasched/dynasched
 |------|--------|---------|
 | `dsched` | `src/tools/dsched/` | The scheduler daemon — accepts and services allocation requests |
 | `dsched-info` | `src/tools/dsched_info/` | Query configuration and list available components |
+| `dsterm` | `src/tools/dsterm/` | Stop a running `dsched` |
 
 ---
 
@@ -55,7 +56,7 @@ Repository: https://github.com/dynasched/dynasched
 
 ```
 src/
-  tools/          # Executable entry points (dsched daemon, dsched-info)
+  tools/          # Executable entry points (dsched daemon, dsched-info, dsterm)
   mca/            # MCA frameworks and their components
   runtime/        # Global state initialization, progress threads
   util/           # Internal utilities (error handling, attrs, session dirs)
@@ -420,7 +421,7 @@ Install into a scratch prefix and run the daemon to smoke-test changes:
 make install                     # from your build tree
 <prefix>/bin/dsched &            # start the scheduler daemon
 # submit a test allocation request via a PMIx client
-kill %1                          # shut down
+<prefix>/bin/dsterm              # shut down; dsched exits 0
 ```
 
 Running with `--dmca dsched_base_verbose 5` (and the matching `dlog`, `dmeta` and `dmetric` verbosity params) shows each framework selecting its component, which confirms the components loaded.

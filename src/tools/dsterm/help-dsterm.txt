@@ -1,0 +1,83 @@
+# -*- text -*-
+#
+# Copyright (c) 2026      Nanook Consulting  All rights reserved.
+# $COPYRIGHT$
+#
+# Additional copyrights may follow
+#
+# $HEADER$
+#
+# This is the US/English general help file for the DynaSched dsterm tool.
+#
+[version]
+
+%s (%s) %s
+
+Report bugs to %s
+#
+[usage]
+
+%s (%s) %s
+
+Usage: "%s [OPTION]..."
+
+Stop a running DynaSched scheduler (dsched).
+
+dsterm connects to dsched and asks it to terminate, then waits until
+it has gone. Unless "--uri" says otherwise, it connects to the
+scheduler running on this host. Only root and the user dsched runs as
+may stop it.
+
+The following list of command line options are available. Note that
+more detailed help for any option can be obtained by adding that
+option to the help request as "--help <option>".
+
++----------------------+-----------------------------------------------+
+| Option               | Description                                   |
+|======================|===============================================|
+| "-h" | "--help"      | This help message                             |
++----------------------+-----------------------------------------------+
+| "-h <arg0>" |        | Help for the specified option                 |
+| "--help <arg0>"      |                                               |
++----------------------+-----------------------------------------------+
+| "-V" | "--version"   | Print version and exit                        |
++----------------------+-----------------------------------------------+
+| "-v" | "--verbose"   | Report each step as it happens                |
+|======================|===============================================|
+| "--pmixmca <key>     | Pass context-specific PMIx MCA parameters     |
+| <value>"             | ("key" is the parameter name; "value" is the  |
+|                      | parameter value)                              |
+|======================|===============================================|
+| "--uri <arg>"        | The URI of the dsched to stop, or             |
+|                      | "file:<path>" for a file holding it (as       |
+|                      | written by "dsched --report-uri <path>")      |
++----------------------+-----------------------------------------------+
+
+Report bugs to %s
+#
+[pmixmca]
+
+Pass a PMIx MCA parameter
+
+Syntax: "--pmixmca <key> <value>", where "key" is the parameter name
+and "value" is the parameter value.
+#
+[uri]
+
+Syntax: "--uri <arg>"
+
+Connect to the dsched at the given PMIx URI rather than to the
+scheduler PMIx advertises on this host. The argument is the URI
+itself, or "file:<path>" for a file that holds it - "dsched
+--report-uri <path>" writes such a file.
+#
+[no-args]
+
+The %s command does not accept arguments other than those specifically
+defined by the command. The following were not recognized:
+
+   Args: %s
+
+Please see "%s --help" for a description of all accepted command
+options.
+#
