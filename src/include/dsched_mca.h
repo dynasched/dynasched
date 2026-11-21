@@ -9,9 +9,9 @@
 /** @file
  *
  * Macros that declare a DynaSched MCA framework and stamp its
- * components.  Kept apart from dsched_globals.h so that the low-level
- * frameworks (ddl, dinstalldirs) can use them without pulling in the
- * daemon's global state.
+ * components.  Kept apart from dsched_globals.h so that a low-level
+ * framework (dinstalldirs) can use them without pulling in the daemon's
+ * global state.
  */
 
 #ifndef DSCHED_MCA_H
