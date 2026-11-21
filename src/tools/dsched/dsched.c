@@ -47,6 +47,8 @@ static void clean_abort(int fd, short flags, void *arg);
 static bool keepalive = false;
 static bool forcibly_die = false;
 static dsched_event_t term_handler;
+/* the file --report-pid wrote our pid to, removed on every way out */
+static char *mypidfile = NULL;
 
 static void parent_died_fn(size_t evhdlr_registration_id, pmix_status_t status,
                            const pmix_proc_t *source, pmix_info_t info[], size_t ninfo,
@@ -127,6 +129,9 @@ static void clean_abort(int fd, short flags, void *arg)
     if (NULL != arg) {
         PMIX_RELEASE(arg);
     }
+    if (NULL != mypidfile) {
+        unlink(mypidfile);
+    }
     // shutdown the pmix server
     dsched_server_finalize();
     // cleanup the session dir
@@ -163,6 +168,9 @@ static void abort_signal_callback(int fd)
         fflush(stderr);
         second = false;
     } else {
+        if (NULL != mypidfile) {
+            unlink(mypidfile);
+        }
         // shutdown the pmix server
         dsched_server_finalize();
         // cleanup the session dir
@@ -239,7 +247,7 @@ int main(int argc, char *argv[])
     pmix_proc_t pname;
     pmix_status_t prc;
     myxfer_t xfer;
-    char *mypidfile = NULL, *evar;
+    char *evar;
     pmix_info_t info;
     char **pargv, *str, *error = NULL;
     pmix_cli_result_t results;
