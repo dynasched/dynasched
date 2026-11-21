@@ -981,14 +981,14 @@ You likely do not need to invoke \"autogen.pl\" -- you can probably run \"config
 If you really know what you are doing, and really need to run autogen.pl, use the \"--force\" flag."
     if (!$force_arg && in_tarball());
 
-# Now that we've verified that we're in the top-level PRRTE directory,
+# Now that we've verified that we're in the top-level DynaSched directory,
 # set the sentinel file to remove if we abort.
 $sentinel = Cwd::cwd() . "/configure";
 
 #---------------------------------------------------------------------------
 
 my $step = 1;
-verbose "PRRTE autogen (buckle up!)
+verbose "DynaSched autogen (buckle up!)
 
 $step. Checking tool versions\n\n";
 
