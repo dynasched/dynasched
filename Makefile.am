@@ -34,7 +34,7 @@ AM_DISTCHECK_CONFIGURE_FLAGS = --disable-dlopen
 headers =
 sources =
 nodist_headers =
-EXTRA_DIST = AUTHORS README.md VERSION LICENSE autogen.pl
+EXTRA_DIST = AUTHORS README.md SECURITY.md VERSION LICENSE autogen.pl
 
 # Only install the valgrind suppressions file and man pages
 # if we're building in standalone mode
