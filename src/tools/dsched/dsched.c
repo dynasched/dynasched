@@ -523,6 +523,20 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* -v asks for a moderate verbosity. PMIx records a flag only once,
+     * however often it is repeated, so it cannot count levels: a level
+     * set by --debug or the dsched_verbose MCA parameter wins. */
+    if (pmix_cmd_line_is_taken(&results, DSCHED_CLI_VERBOSE) &&
+        dsched_globals.verbosity <= 0) {
+        dsched_globals.verbosity = 5;
+        dsched_globals.output = pmix_output_open(NULL);
+        pmix_output_set_verbosity(dsched_globals.output,
+                                  dsched_globals.verbosity);
+        dsched_globals.pmix_output = pmix_output_open(NULL);
+        pmix_output_set_verbosity(dsched_globals.pmix_output,
+                                  dsched_globals.verbosity);
+    }
+
     if (pmix_cmd_line_is_taken(&results, DSCHED_CLI_NO_READY_MSG)) {
         ready_msg = false;
     }
