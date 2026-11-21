@@ -1,4 +1,10 @@
-ssssss://www.gnu.org/software/automake
+# Out-of-tree (VPATH) build dirs.  build/ is the conventional name for
+# your own, which AGENTS.md tells you to use rather than configuring in
+# the source tree; any vpath-* is equally yours.
+/vpath-*/
+/build/
+
+# https://www.gnu.org/software/automake
 
 Makefile
 Makefile.in
