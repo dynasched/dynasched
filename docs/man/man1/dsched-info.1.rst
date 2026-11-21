@@ -80,7 +80,9 @@ OPTIONS
   DynaSched's version and every component's.
 
 * ``-t`` | ``--type <type>``: Show the MCA parameters of the given
-  value type (for example ``string`` or ``int``).
+  value type: ``int``, ``unsigned_int``, ``unsigned_long``,
+  ``unsigned_long_long``, ``size_t``, ``string``, ``version_string``,
+  ``bool`` or ``double``.
 
 * ``--include-pmix``: Also show the PMIx build information and MCA
   parameters.
