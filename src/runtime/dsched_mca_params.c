@@ -363,5 +363,12 @@ int dsched_process_cli_mca_params(pmix_cli_result_t *cli)
             free(tmp);
         }
     }
+
+    /* --tmpdir is shorthand for the dsched_tmpdir MCA parameter, and is
+     * applied the same way so that it outranks a value set elsewhere */
+    opt = pmix_cmd_line_get_param(cli, DSCHED_CLI_TMPDIR);
+    if (NULL != opt && NULL != opt->values && NULL != opt->values[0]) {
+        setenv("DSCHED_MCA_dsched_tmpdir", opt->values[0], true);
+    }
     return DSCHED_SUCCESS;
 }
