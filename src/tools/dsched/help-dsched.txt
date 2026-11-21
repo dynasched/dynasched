@@ -7,7 +7,7 @@
 #
 # $HEADER$
 #
-# This is the US/English general help file for DynaSched dsched-info tool.
+# This is the US/English general help file for the DynaSched dsched daemon.
 #
 [version]
 
@@ -62,10 +62,15 @@ option to the help request as "--help <option>".
 |                        | directory tree                                |
 +------------------------+-----------------------------------------------+
 | "--report-pid <arg>"   | Print out PID on stdout ("-"), stderr ("+"),  |
-|                        | or a file (anything else)                     |
+|                        | a pipe (an integer fd), or a file (anything   |
+|                        | else)                                         |
 +------------------------+-----------------------------------------------+
 | "--report-uri <arg>"   | Print out URI on stdout ("-"), stderr ("+"),  |
-|                        | or a file (anything else)                     |
+|                        | a pipe (an integer fd), or a file (anything   |
+|                        | else)                                         |
++------------------------+-----------------------------------------------+
+| "--debug"              | Show debug output (verbosity 10) and report   |
+|                        | the exit status                               |
 +------------------------+-----------------------------------------------+
 | "--controller <arg>"   | Connect to the given system controller, named |
 |                        | by "pid:", "file:", "uri:" or "ns:", or       |
@@ -136,17 +141,27 @@ Again, we recommend this only be done if absolutely necessary.
 #
 [report-pid]
 
-Printout dsched's PID on stdout ("-"), stderr ("+"), or a file
-(anything else).
+Print out dsched's PID on stdout ("-"), stderr ("+"), the pipe whose
+file descriptor is given (an integer), or a file (anything else). A
+file is removed when dsched exits.
 #
 [report-uri]
 
-Printout dsched's URI on stdout ("-"), stderr ("+"), or a file
-(anything else).
+Print out dsched's URI on stdout ("-"), stderr ("+"), the pipe whose
+file descriptor is given (an integer), or a file (anything else).
 #
 [keepalive]
 
-Pipe for dsched to monitor — job will terminate upon closure
+Pipe for dsched to monitor - dsched will terminate upon its closure.
+While the pipe is open, dsched ignores the first termination signal.
+#
+[debug]
+
+Syntax: "--debug"
+
+Show debug output: set dsched's verbosity to 10, unless a level was
+already set by the dsched_verbose MCA parameter, and report dsched's
+exit status as it exits.
 #
 [tmpdir]
 
