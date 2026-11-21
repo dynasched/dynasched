@@ -23,7 +23,8 @@ actually gone rather than merely heard the request.
 
 On the request, ``dsched`` finalizes its PMIx server, removes its
 session directory and any file it wrote for ``--report-pid``, and
-exits with status 0. This is the orderly way to stop ``dsched``.
+exits with status 0. This is the orderly way to stop ``dsched``; see
+`STOPPING DSCHED WITH SIGNALS`_ for the other.
 
 Unless ``--uri`` says otherwise, ``dsterm`` connects to the scheduler
 that PMIx advertises on the local host.
@@ -69,6 +70,31 @@ connection to ``dsched`` and exits; should that hang, a second warns
 that another will force termination, and a third forces it. Whether
 ``dsched`` stops then depends on whether the request had already
 reached it.
+
+
+STOPPING DSCHED WITH SIGNALS
+----------------------------
+
+``dsched`` also stops on ``SIGTERM``, ``SIGINT`` or ``SIGHUP``. That is
+its abnormal way out, and it exits with status 1. The signals count up
+in a fixed sequence:
+
+#. **The first signal** starts an orderly abort: ``dsched`` finalizes
+   its PMIx server, removes its session directory and any
+   ``--report-pid`` file, and exits.
+
+#. **A second signal**, if the abort has not finished, prints a warning
+   that the abort is in progress and that another signal will force
+   termination.
+
+#. **A third signal** forces termination: ``dsched`` makes one last
+   attempt to finalize its server and remove its files, and exits
+   immediately.
+
+A ``dsched`` started with ``--keepalive <fd>`` lives as long as that
+pipe stays open, so it ignores the first signal. A second still prints
+the warning, and a third still forces termination. Closing the pipe
+makes ``dsched`` abort as for a first signal.
 
 
 EXAMPLES
