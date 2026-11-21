@@ -972,6 +972,7 @@ AC_CONFIG_FILES([
     src/util/Makefile
     src/tools/dsched/Makefile
     src/tools/dsched_info/Makefile
+    src/tools/dsterm/Makefile
 ])
 
 

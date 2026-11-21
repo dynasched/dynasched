@@ -98,6 +98,7 @@ docs/security.rst
 # tools
 src/tools/dsched/dsched
 src/tools/dsched_info/dsched-info
+src/tools/dsterm/dsterm
 
 # Common Python virtual environment directory names
 venv

@@ -70,6 +70,9 @@ BEGIN_C_DECLS
 // Daemon-specific CLI options
 #define DSCHED_CLI_CONTROLLER_URI         "controller"                // required
 
+// Tool options
+#define DSCHED_CLI_URI                    "uri"                       // required
+
 END_C_DECLS
 
 #endif /* DSCHED_CMD_LINE_H */

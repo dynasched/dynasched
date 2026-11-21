@@ -27,8 +27,10 @@
 
 SUBDIRS += \
     tools/dsched \
-    tools/dsched_info
+    tools/dsched_info \
+    tools/dsterm
 
 DIST_SUBDIRS += \
     tools/dsched \
-    tools/dsched_info
+    tools/dsched_info \
+    tools/dsterm
