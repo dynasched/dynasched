@@ -114,6 +114,10 @@ static int ddlopen_open(const char *fname, bool use_ext, bool private_namespace,
 
     if (NULL != local_handle) {
         *handle = calloc(1, sizeof(dsched_ddl_handle_t));
+        if (NULL == *handle) {
+            dlclose(local_handle);
+            return DSCHED_ERR_OUT_OF_RESOURCE;
+        }
         (*handle)->dlopen_handle = local_handle;
 
 #if DSCHED_ENABLE_DEBUG
