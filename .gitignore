@@ -93,6 +93,7 @@ docs/_templates
 
 # Generated RST files
 docs/code-of-conduct.rst
+docs/security.rst
 
 # tools
 src/tools/dsched/dsched

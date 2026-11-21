@@ -32,7 +32,8 @@ SPHINX_CONFIG      = conf.py
 SPHINX_OPTS       ?= -W --keep-going -j auto
 
 MARKDOWN_SOURCE_FILES = \
-        $(top_srcdir)/.github/CODE_OF_CONDUCT.md
+        $(top_srcdir)/.github/CODE_OF_CONDUCT.md \
+        $(top_srcdir)/SECURITY.md
 
 # Note: it is significantly more convenient to list all the source
 # files here using wildcards (vs. listing every single .rst file).
@@ -59,7 +60,7 @@ RST_SOURCE_FILES   = \
 
 EXTRA_DIST         = \
         requirements.txt \
-        generate-code-of-conduct-rst.py \
+        generate-rst-from-md.py \
         $(SPHINX_CONFIG) \
         $(MARKDOWN_SOURCE_FILES) \
         $(TEXT_SOURCE_FILES) \
@@ -110,9 +111,12 @@ if DSCHED_BUILD_DOCS
 
 include $(top_srcdir)/Makefile.dsched-rules
 
-# Generate this file from CODE_OF_CONDUCT.md as part of the Sphinx
-# docs build.
+# Generate these files from their Markdown sources as part of the
+# Sphinx docs build.  Both live where GitHub (and anyone browsing it)
+# looks for them, but they belong in the online docs as well -- so the
+# docs build renders them rather than us keeping a second copy by hand.
 CODE_OF_CONDUCT_RST = $(srcdir)/code-of-conduct.rst
+SECURITY_RST = $(srcdir)/security.rst
 
 # Have to not list these targets in EXTRA_DIST outside of the
 # DSCHED_BUILD_DOCS conditional because "make dist" will fail due to
@@ -130,12 +134,19 @@ ALL_MAN_BUILT = \
         $(DSCHED_MAN1_BUILT) $(DSCHED_MAN7_BUILT)
 $(ALL_MAN_BUILT): $(RST_SOURCE_FILES) $(IMAGE_SOURCE_FILES)
 $(ALL_MAN_BUILT): $(TEXT_SOURCE_FILES) $(SPHINX_CONFIG)
-$(ALL_MAN_BUILT): $(CODE_OF_CONDUCT_RST)
+$(ALL_MAN_BUILT): $(CODE_OF_CONDUCT_RST) $(SECURITY_RST)
 
 $(CODE_OF_CONDUCT_RST): $(top_srcdir)/.github/CODE_OF_CONDUCT.md
-$(CODE_OF_CONDUCT_RST): generate-code-of-conduct-rst.py
-	$(DSCHED_V_GEN) python3 $(srcdir)/generate-code-of-conduct-rst.py \
-		--input $(top_srcdir)/.github/CODE_OF_CONDUCT.md --output $@
+$(CODE_OF_CONDUCT_RST): generate-rst-from-md.py
+	$(DSCHED_V_GEN) $(PYTHON) $(srcdir)/generate-rst-from-md.py \
+		--input $(top_srcdir)/.github/CODE_OF_CONDUCT.md \
+		--label .github/CODE_OF_CONDUCT.md --output $@
+
+$(SECURITY_RST): $(top_srcdir)/SECURITY.md
+$(SECURITY_RST): generate-rst-from-md.py
+	$(DSCHED_V_GEN) $(PYTHON) $(srcdir)/generate-rst-from-md.py \
+		--input $(top_srcdir)/SECURITY.md \
+		--label SECURITY.md --output $@
 
 # List both commands (HTML and man) in a single rule because they
 # really need to be run in serial.  Specifically, if they were two
@@ -157,13 +168,13 @@ linkcheck:
 
 maintainer-clean-local:
 	$(SPHINX_BUILD) -M clean "$(srcdir)" "$(OUTDIR)" $(SPHINX_OPTS)
-	rm -f $(CODE_OF_CONDUCT_RST)
+	rm -f $(CODE_OF_CONDUCT_RST) $(SECURITY_RST)
 
 # List all the built man pages here in the Automake BUILT_SOURCES
 # macro.  This hooks into the normal Automake build mechanisms, and
 # will ultimately cause the invocation of the above rule that runs
 # Sphinx to build the HTML and man pages.
-BUILT_SOURCES = $(CODE_OF_CONDUCT_RST) $(ALL_MAN_BUILT)
+BUILT_SOURCES = $(CODE_OF_CONDUCT_RST) $(SECURITY_RST) $(ALL_MAN_BUILT)
 
 endif DSCHED_BUILD_DOCS
 
