@@ -37,8 +37,8 @@ AC_DEFUN([MCA_dsched_ddl_dlibltdl_POST_CONFIG],[
           ])
 ])dnl
 
-# MCA_ddl_dlibltdl_CONFIG([action-if-can-compile],
-#                         [action-if-cant-compile])
+# MCA_dsched_ddl_dlibltdl_CONFIG([action-if-can-compile],
+#                                [action-if-cant-compile])
 # ------------------------------------------------
 AC_DEFUN([MCA_dsched_ddl_dlibltdl_CONFIG],[
     DSCHED_VAR_SCOPE_PUSH([CPPFLAGS_save LDFLAGS_save LIBS_save])
@@ -63,7 +63,7 @@ AC_DEFUN([MCA_dsched_ddl_dlibltdl_CONFIG],[
                       [dsched_ddl_dlibltdl_happy=no])
         ])
 
-    # If we have dlibltdl, do we have lt_dladvise?
+    # If we have libltdl, do we have lt_dladvise?
     dsched_ddl_dlibltdl_have_lt_dladvise=0
     AS_IF([test "$dsched_ddl_dlibltdl_happy" = "yes"],
           [CPPFLAGS_save=$CPPFLAGS
