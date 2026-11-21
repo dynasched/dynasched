@@ -51,6 +51,8 @@ static void _toolconn(int sd, short args, void *cbdata)
     pmix_proclist_t *tl;
     size_t n;
     pmix_status_t xrc;
+    bool uid_given = false;
+    bool gid_given = false;
     DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
     PMIX_ACQUIRE_OBJECT(cd);
@@ -77,6 +79,7 @@ static void _toolconn(int sd, short args, void *cbdata)
                     PMIX_RELEASE(cd);
                     return;
                 }
+                uid_given = true;
 
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_GRPID)) {
                 xrc = PMIx_Value_get_number(&cd->info[n].value, &cd->gid, PMIX_UINT32);
@@ -87,6 +90,7 @@ static void _toolconn(int sd, short args, void *cbdata)
                     PMIX_RELEASE(cd);
                     return;
                 }
+                gid_given = true;
 
             } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_NSPACE)) {
                 if (PMIX_STRING != cd->info[n].value.type ||
@@ -142,6 +146,22 @@ static void _toolconn(int sd, short args, void *cbdata)
                 }
             }
         }
+    }
+
+    /* PMIx names the user and group it established for every tool
+     * connection, so a tool arriving without them did not come through
+     * PMIx's checks as expected. The caddy starts with uid and gid 0, so
+     * accepting it would treat the tool as root - refuse it instead. */
+    if (!uid_given || !gid_given) {
+        pmix_output_verbose(2, dsched_globals.pmix_output,
+                            "%s refusing a tool connection that names no %s",
+                            PMIX_NAME_PRINT(&dsched_globals.myid),
+                            uid_given ? "group" : "user");
+        if (NULL != cd->toolcbfunc) {
+            cd->toolcbfunc(PMIX_ERR_NO_PERMISSIONS, NULL, cd->cbdata);
+        }
+        PMIX_RELEASE(cd);
+        return;
     }
 
     pmix_output_verbose(2, dsched_globals.pmix_output,
