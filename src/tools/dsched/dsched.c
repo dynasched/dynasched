@@ -344,6 +344,41 @@ int main(int argc, char *argv[])
         return ret;
     }
 
+    /* Detach from the controlling terminal, if so directed. This has to
+     * come before anything starts a thread - the component progress
+     * threads, PMIx's own - because fork() copies only the calling
+     * thread, and macOS aborts a child that goes on to use Objective-C
+     * (as hwloc does, through OpenCL) after forking a multithreaded
+     * parent. It also has to come before our pid is used for anything,
+     * since the child is the process that carries on. */
+    if (pmix_cmd_line_is_taken(&results, DSCHED_CLI_DAEMONIZE)) {
+        if (0 > pipe(wait_pipe)) {
+            fprintf(stderr, "Error opening pipe: %s\n", strerror(errno));
+            exit(1);
+        }
+        dsched_globals.parent_fd = wait_pipe[1];
+        if (DSCHED_SUCCESS != dsched_daemon_init_callback(NULL, wait_dvm)) {
+            fprintf(stderr, "%s: unable to daemonize\n", dsched_globals.basename);
+            exit(1);
+        }
+        close(wait_pipe[0]);
+        dsched_globals.pid = getpid();
+        /* the event base was opened before we forked, and some backends
+         * (e.g., kqueue on macOS) do not survive a fork - reinitialize it
+         * so the child has a working one */
+        if (0 != dsched_event_reinit(dsched_globals.evbase)) {
+            exit(1);
+        }
+    } else {
+#if defined(HAVE_SETSID)
+        /* see if we were directed to separate from current session
+         * (a daemon already did so as it detached) */
+        if (pmix_cmd_line_is_taken(&results, DSCHED_CLI_SET_SID)) {
+            setsid();
+        }
+#endif
+    }
+
     /* we may have been passed a PMIx nspace to use */
     if (NULL != (evar = getenv("PMIX_SERVER_NSPACE"))) {
         PMIX_LOAD_NSPACE(dsched_globals.myid.nspace, evar);
@@ -459,25 +494,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // detach from controlling terminal, if so directed
-    if (pmix_cmd_line_is_taken(&results, DSCHED_CLI_DAEMONIZE)) {
-        ret = pipe(wait_pipe);
-        if (0 > ret) {
-            fprintf(stderr, "Error opening pipe: %s\n", strerror(errno));
-            ret = DSCHED_ERR_SILENT;
-            goto DONE;
-        }
-        dsched_globals.parent_fd = wait_pipe[1];
-        dsched_daemon_init_callback(NULL, wait_dvm);
-        close(wait_pipe[0]);
-#if defined(HAVE_SETSID)
-        /* see if we were directed to separate from current session */
-        if (pmix_cmd_line_is_taken(&results, DSCHED_CLI_SET_SID)) {
-            setsid();
-        }
-#endif
-    }
-
     if (pmix_cmd_line_is_taken(&results, DSCHED_CLI_NO_READY_MSG)) {
         ready_msg = false;
     }
@@ -569,10 +585,19 @@ int main(int argc, char *argv[])
         pmix_pointer_array_add(&dsched_globals.nodes, node);
     }
 
-    /* output a message indicating we are alive, our name, and our pid */
-    if (ready_msg) {
-        fprintf(stderr, "Scheduler checking in as pid %ld on host %s\n",
-                (long) dsched_globals.pid, dsched_globals.hostname);
+    /* output a message indicating we are alive, our name, and our pid -
+     * or, if we daemonized, tell the waiting parent we are ready so it
+     * can exit (our output now goes to /dev/null) */
+    if (0 > dsched_globals.parent_fd) {
+        if (ready_msg) {
+            fprintf(stderr, "Scheduler checking in as pid %ld on host %s\n",
+                    (long) dsched_globals.pid, dsched_globals.hostname);
+        }
+    } else {
+        char ok = 'K';
+        pmix_fd_write(dsched_globals.parent_fd, 1, &ok);
+        close(dsched_globals.parent_fd);
+        dsched_globals.parent_fd = -1;
     }
 
     /* loop the event lib until an exit event is detected */
