@@ -76,25 +76,8 @@ STOPPING DSCHED WITH SIGNALS
 ----------------------------
 
 ``dsched`` also stops on ``SIGTERM``, ``SIGINT`` or ``SIGHUP``. That is
-its abnormal way out, and it exits with status 1. The signals count up
-in a fixed sequence:
-
-#. **The first signal** starts an orderly abort: ``dsched`` finalizes
-   its PMIx server, removes its session directory and any
-   ``--report-pid`` file, and exits.
-
-#. **A second signal**, if the abort has not finished, prints a warning
-   that the abort is in progress and that another signal will force
-   termination.
-
-#. **A third signal** forces termination: ``dsched`` makes one last
-   attempt to finalize its server and remove its files, and exits
-   immediately.
-
-A ``dsched`` started with ``--keepalive <fd>`` lives as long as that
-pipe stays open, so it ignores the first signal. A second still prints
-the warning, and a third still forces termination. Closing the pipe
-makes ``dsched`` abort as for a first signal.
+its abnormal way out: it exits with status 1, and repeated signals
+count up in a fixed sequence. See :ref:`dsched(1) <man1-dsched>`.
 
 
 EXAMPLES
@@ -114,5 +97,6 @@ Stop the scheduler whose URI was written to a file when it started:
    dsterm --uri file:/path/to/dsched.uri
 
 .. seealso::
+   :ref:`dsched(1) <man1-dsched>`,
    :ref:`dsched-info(1) <man1-dsched-info>`,
    :ref:`dynasched(7) <man7-dynasched>`
