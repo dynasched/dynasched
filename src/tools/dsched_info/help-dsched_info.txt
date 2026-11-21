@@ -148,3 +148,22 @@ Show all configuration options and MCA parameters
 Syntax: "--include-pmix"
 
 Include PMIx params and build info in output
+#
+[lib-call-fail]
+
+A library call unexpectedly failed.  This is a terminal error; please
+show this message to a DynaSched developer:
+
+   Library call: %s Source file: %s Source line number: %d
+
+Aborting...
+#
+[no-args]
+
+The %s command does not accept arguments other than those specifically
+defined by the command. The following were not recognized:
+
+   Args: %s
+
+Please see "%s --help" for a description of all accepted command
+options.

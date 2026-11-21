@@ -1,0 +1,35 @@
+# -*- text -*-
+#
+# Copyright (c) 2026      Nanook Consulting  All rights reserved.
+# $COPYRIGHT$
+#
+# Additional copyrights may follow
+#
+# $HEADER$
+#
+# This is the US/English general help file for the DynaSched runtime.
+#
+[dsched_init:startup:internal-failure]
+
+It looks like the DynaSched daemon failed to start for some reason.
+There are many reasons that can cause this, some of which are due to
+configuration or environment problems.  This failure appears to be an
+internal failure - here's some additional information (which may only
+be relevant to a DynaSched developer):
+
+   %s failed
+   --> Returned value %s (%d) instead of DSCHED_SUCCESS
+#
+[dsched:session:dir:prohibited]
+
+The specified location for the temporary directories required by
+DynaSched is on the list of prohibited locations:
+
+   Location given: %s
+   Prohibited locations: %s
+
+If you believe this is in error, please contact your system
+administrator to have the list of prohibited locations changed.
+Otherwise, please identify a different location to be used (use "-h"
+to see the cmd line option), or simply let the system pick a default
+location.

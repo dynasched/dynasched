@@ -25,7 +25,8 @@
 
 # This makefile.am does not stand on its own - it is included from src/Makefile.am
 
-EXTRA_DIST +=
+EXTRA_DIST += \
+	runtime/help-dsched-runtime.txt
 
 headers += \
 	runtime/dsched_rte.h \
