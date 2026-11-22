@@ -34,6 +34,8 @@
 #endif
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
+#include <strings.h>
 
 #include "src/mca/base/pmix_mca_base_var.h"
 #include "src/mca/dinstalldirs/dinstalldirs.h"
@@ -167,17 +169,30 @@ int dsched_register_params(void)
 int dsched_preload_default_mca_params(void)
 {
     char *file, *home, *tmp, **paths = NULL;
+    const char *param_files, *override_param_file;
+    bool suppress;
     pmix_list_t params, params2, pfinal;
     pmix_mca_base_var_file_value_t *fv, *fv2, *fvnext, *fvnext2;
     bool match;
     int i, rc;
+
+    /* The files are read before the MCA params are registered, so
+     * dsched_param_files and dsched_override_param_file have no value
+     * of their own yet: read them as the environment - or the command
+     * line, which sets it - gives them */
+    param_files = getenv("DSCHED_MCA_dsched_param_files");
+    override_param_file = getenv("DSCHED_MCA_dsched_override_param_file");
+    tmp = getenv("DSCHED_MCA_dsched_suppress_override_warning");
+    suppress = (NULL != tmp && (0 == strcasecmp(tmp, "1") || 0 == strcasecmp(tmp, "true") ||
+                                0 == strcasecmp(tmp, "yes") || 0 == strcasecmp(tmp, "t") ||
+                                0 == strcasecmp(tmp, "y")));
 
     home = (char*)pmix_home_directory(-1);
     PMIX_CONSTRUCT(&params, pmix_list_t);
     PMIX_CONSTRUCT(&params2, pmix_list_t);
     PMIX_CONSTRUCT(&pfinal, pmix_list_t);
 
-    if (NULL == dsched_globals.param_files) {
+    if (NULL == param_files) {
         /* start with the system-level defaults */
         file = pmix_os_path(false, dsched_dinstall_dirs.sysconfdir, "dsched-mca-params.conf", NULL);
         rc = pmix_mca_base_parse_paramfile(file, &params);
@@ -196,7 +211,7 @@ int dsched_preload_default_mca_params(void)
         }
     } else {
         // split the string on commas
-        paths = PMIx_Argv_split(dsched_globals.param_files, ',');
+        paths = PMIx_Argv_split(param_files, ',');
         // process each path
         for (i=0; NULL != paths[i]; i++) {
             rc = pmix_mca_base_parse_paramfile(paths[i], &params);
@@ -242,9 +257,9 @@ int dsched_preload_default_mca_params(void)
 
     // process any override params
     PMIX_CONSTRUCT(&params, pmix_list_t);
-    if (NULL != dsched_globals.override_param_file) {
+    if (NULL != override_param_file) {
         // process the file
-        rc = pmix_mca_base_parse_paramfile(dsched_globals.override_param_file, &params);
+        rc = pmix_mca_base_parse_paramfile(override_param_file, &params);
         if (PMIX_SUCCESS != rc && PMIX_ERR_NOT_FOUND != rc) {
             // it is okay if the file isn't found
             PMIX_LIST_DESTRUCT(&params);
@@ -256,7 +271,7 @@ int dsched_preload_default_mca_params(void)
             PMIX_LIST_FOREACH(fv, &pfinal, pmix_mca_base_var_file_value_t) {
                 PMIX_LIST_FOREACH(fv2, &params, pmix_mca_base_var_file_value_t) {
                     if (0 == strcmp(fv->mbvfv_var, fv2->mbvfv_var)) {
-                        if (!dsched_globals.suppress_override_warning) {
+                        if (!suppress) {
                             pmix_show_help("help-pmix-mca-var.txt", "overridden-param-set", true, fv->mbvfv_var);
                         }
                         free(fv->mbvfv_var);
@@ -271,7 +286,7 @@ int dsched_preload_default_mca_params(void)
             PMIX_LIST_FOREACH(fv, &params, pmix_mca_base_var_file_value_t) {
                 if (pmix_pmdl_base_check_pmix_param(fv->mbvfv_var)) {
                     pmix_asprintf(&tmp, "PMIX_MCA_%s", fv->mbvfv_var);
-                    if (!dsched_globals.suppress_override_warning && NULL != getenv(tmp)) {
+                    if (!suppress && NULL != getenv(tmp)) {
                         pmix_show_help("help-pmix-mca-var.txt", "overridden-param-set", true, tmp);
                     }
                     // set it, and overwrite if they already
@@ -280,7 +295,7 @@ int dsched_preload_default_mca_params(void)
                     free(tmp);
                 } else {
                     pmix_asprintf(&tmp, "DSCHED_MCA_%s", fv->mbvfv_var);
-                    if (!dsched_globals.suppress_override_warning && NULL != getenv(tmp)) {
+                    if (!suppress && NULL != getenv(tmp)) {
                         pmix_show_help("help-pmix-mca-var.txt", "overridden-param-set", true, tmp);
                     }
                     // set it, and overwrite if they already

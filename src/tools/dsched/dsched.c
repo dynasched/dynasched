@@ -357,11 +357,13 @@ int main(int argc, char *argv[])
         allow_run_as_root(&results); // will exit us if not allowed
     }
 
+    // process/promote MCA params on cmd line - first, so that the
+    // param files below can be named there, and so that a value given
+    // there is not replaced by one from a file
+    dsched_process_cli_mca_params(&results);
+
     /* pre-load any default mca param files */
     dsched_preload_default_mca_params();
-
-    // process/promote MCA params on cmd line
-    dsched_process_cli_mca_params(&results);
 
     /* Register all global MCA Params */
     if (DSCHED_SUCCESS != (ret = dsched_register_params())) {
