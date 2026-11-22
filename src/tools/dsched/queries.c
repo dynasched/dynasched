@@ -64,7 +64,7 @@ static void _query(int sd, short args, void *cbdata)
     void *results;
     dsched_node_t *node = NULL;
     int k, rc;
-    size_t m, n;
+    size_t m, n, nkeys = 0;
     uint32_t nodeid;
     dsched_topology_t *topo;
     char *xmlbuffer = NULL;
@@ -130,6 +130,7 @@ static void _query(int sd, short args, void *cbdata)
         }
 
         for (n = 0; NULL != q->keys[n]; n++) {
+            ++nkeys;
             pmix_output_verbose(2, dsched_globals.pmix_output,
                                 "%s processing key %s",
                                 PMIX_NAME_PRINT(&dsched_globals.myid), q->keys[n]);
@@ -254,7 +255,11 @@ static void _query(int sd, short args, void *cbdata)
                 }
 
             } else {
-                fprintf(stderr, "Query for unrecognized attribute: %s\n", q->keys[n]);
+                /* a key we do not answer is left out of the results, and
+                 * the status tells the requestor so */
+                pmix_output_verbose(2, dsched_globals.pmix_output,
+                                    "%s query for unrecognized key %s",
+                                    PMIX_NAME_PRINT(&dsched_globals.myid), q->keys[n]);
             }
         } // for
     }     // for
@@ -263,19 +268,22 @@ done:
     rcd = PMIX_NEW(dsched_shift_caddy_t);
     rc = PMIx_Info_list_convert(results, &dry);
     if (PMIX_SUCCESS != rc) {
-        PMIX_ERROR_LOG(rc);
-        ret = rc;
+        /* an empty list is no results, not an error: the status below
+         * says that nothing was found */
+        if (PMIX_ERR_EMPTY != rc) {
+            PMIX_ERROR_LOG(rc);
+            ret = rc;
+        }
+        dry.array = NULL;
+        dry.size = 0;
     }
     PMIx_Info_list_release(results);
     if (PMIX_SUCCESS == ret) {
         if (0 == dry.size) {
             ret = PMIX_ERR_NOT_FOUND;
-        } else {
-            if (dry.size < cd->ninfo) {
-                ret = PMIX_QUERY_PARTIAL_SUCCESS;
-            } else {
-                ret = PMIX_SUCCESS;
-            }
+        } else if (dry.size < nkeys) {
+            /* each key we answer adds one result */
+            ret = PMIX_ERR_PARTIAL_SUCCESS;
         }
     }
     rcd->ninfo = dry.size;
