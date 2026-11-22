@@ -64,6 +64,11 @@
  *******************************/
 static bool tmpdir_created = false;
 static bool setup_base_complete = false;
+/* The directory we created, if we did. dsched_globals.tmpdir is the
+ * storage of the dsched_tmpdir MCA parameter, which PMIx releases when
+ * its MCA system is finalized - in PMIx_tool_finalize, before we remove
+ * the directory - so we keep the path of our own */
+static char *created_tmpdir = NULL;
 
 /*
  * Construct the session directory and create it if necessary
@@ -123,6 +128,10 @@ pmix_status_t dsched_session_dir_init(void)
     }
 
     if (PMIX_ERR_EXISTS != rc) {
+        created_tmpdir = strdup(dsched_globals.tmpdir);
+        if (NULL == created_tmpdir) {
+            return PMIX_ERR_OUT_OF_RESOURCE;
+        }
         tmpdir_created = true;
     }
     return PMIX_SUCCESS;
@@ -131,12 +140,13 @@ pmix_status_t dsched_session_dir_init(void)
 void dsched_session_dir_finalize(void)
 {
     // if we didn't create it, don't destruct it
-    if (!tmpdir_created || NULL == dsched_globals.tmpdir) {
+    if (!tmpdir_created || NULL == created_tmpdir) {
         return;
     }
 
-    pmix_os_dirpath_destroy(dsched_globals.tmpdir, true, NULL);
-    rmdir(dsched_globals.tmpdir);
-    free(dsched_globals.tmpdir);
-    dsched_globals.tmpdir = NULL;
+    pmix_os_dirpath_destroy(created_tmpdir, true, NULL);
+    rmdir(created_tmpdir);
+    free(created_tmpdir);
+    created_tmpdir = NULL;
+    tmpdir_created = false;
 }
