@@ -40,9 +40,11 @@ type of component, it may support multiple components of that type.
 Some of the more common frameworks that users may want or need to
 customize include the following:
 
-* ``sched``: DynaSched Scheduling Layer; users may want to select
+* ``dsched``: DynaSched Scheduling Layer; users may want to select
   which schedulers are selected to be active
-* ``metrics``: Metrics to be used by scheduler components during
+* ``dmeta``: Meta-schedulers, which order pending requests and choose
+  among the allocations the schedulers propose
+* ``dmetric``: Metrics to be used by scheduler components during
   their computation, and for "scoring" the resulting proposed
   allocations
 
@@ -134,7 +136,7 @@ using the ``--dmca`` option:
 
 .. code-block:: sh
 
-   shell$ dsched --dmca sched_fifo_metric energy
+   shell$ dsched --dmca dsched_base_verbose 5
 
 Note that DynaSched is based on the PMIx library, and therefore the PMIx
 MCA parameters can also be set to configure that library's behavior. PMIx
@@ -174,7 +176,7 @@ permitted).  For example:
 
    # This is a comment
    # Set an MCA parameter
-   mca_component_show_load_errors = 1
+   dsched_base_verbose = 5
 
 Note that quotes are *not* necessary for setting multi-word values
 in MCA parameter files.  Indeed, if you use quotes in the MCA
@@ -194,10 +196,19 @@ By default, two files are searched (in order):
 #. ``$prefix/etc/dsched-mca-params.conf``: The system-supplied set
    of values has a lower precedence.
 
-More specifically, the MCA parameter ``mca_param_files`` specifies a
-colon-delimited path of files to search for MCA parameters.  Files to
+More specifically, the MCA parameter ``dsched_param_files`` specifies a
+comma-delimited list of files to read in place of those two.  Files to
 the left have lower precedence; files to the right are higher
-precedence.
+precedence.  The files are read before any of them can set a value, so
+``dsched_param_files`` itself is taken only from the command line or
+the environment.
+
+The MCA parameter ``dsched_override_param_file`` names one more file,
+whose values take precedence over every other source: the other files,
+the environment, and the command line.  ``dsched`` warns about each
+value it overrides, unless ``dsched_suppress_override_warning`` is
+true.  Like ``dsched_param_files``, both are taken only from the
+command line or the environment.
 
 .. warning:: Setting DynaSched MCA parameters via configuration files
              entails editing (by default) the following files:
@@ -217,24 +228,26 @@ which components are selected to be used at run-time.  Specifically,
 every framework has an MCA parameter of the same name that can be used
 to *include* or *exclude* components from a given run.
 
-For example, the ``sched`` MCA parameter can used to control which scheduler
+For example, the ``dsched`` MCA parameter can be used to control which scheduler
 components are used.  It takes a comma-delimited list of component
-names, and may be optionally prefixed with ``^``.  For example:
+names, and may be optionally prefixed with ``^``.  For example, with
+the ``fifo`` component and a second one, here called ``lrhnn`` (this
+release has only ``fifo``):
 
-.. note:: The ``sched`` framework provides support
+.. note:: The ``dsched`` framework provides support
   for a range of scheduling algorithms. The various plugins can
   execute in parallel (e.g., to compare their results), or a single
   one can be selected for production purposes.
 
 .. code-block:: sh
 
-   # Tell DynaSched to include *only* the sched components listed here and
+   # Tell DynaSched to include *only* the dsched components listed here and
    # implicitly ignore all the rest:
-   export SCHED_MCA_sched=fifo,lrhnn ...
+   export DSCHED_MCA_dsched=fifo,lrhnn ...
 
-   # Tell DynaSched to exclude the fifo and lrhnn sched components
+   # Tell DynaSched to exclude the fifo and lrhnn dsched components
    # and implicitly include all the rest
-   export DSCHED_MCA_sched=^fifo,lrhnn ...
+   export DSCHED_MCA_dsched=^fifo,lrhnn ...
 
 Note that ``^`` can *only* be the prefix of the *entire*
 comma-delimited list because the inclusive and exclusive behavior are
@@ -245,7 +258,7 @@ these components").  Hence, something like this:
 
 .. code-block:: sh
 
-   export DSCHED_MCA_sched=fifo,^lrhnn ...
+   export DSCHED_MCA_dsched=fifo,^lrhnn ...
 
 does not make sense |mdash| and will cause an error |mdash| because it
 says "use only the ``fifo`` component" but
@@ -267,17 +280,19 @@ most users.  Although the full list of MCA parameters can be found in the output
 presented here so that they can easily be found via internet searches:
 
 * Individual framework names with the ``_base_verbose`` suffix
-  appended (e.g., ``sched_base_verbose``, ``metrics_base_verbose``, etc.)
+  appended (e.g., ``dsched_base_verbose``, ``dmetric_base_verbose``, etc.)
   can be used to set the general verbosity level of all the components
   in that framework.
 
   * This can be helpful when troubleshooting why certain components
     are or are not being selected at run time.
 
-* ``mca_base_component_show_load_errors``: By default, DynaSched
-  emits a warning message if it fails to open a DSO component at run
-  time.  This typically happens when a shared library that the DSO
-  requires is not available.
+* ``mca_base_component_show_load_errors``: PMIx opens DynaSched's
+  components, so this is a PMIx parameter: set it with ``--pmixmca``
+  or a ``PMIX_MCA_mca_base_component_show_load_errors`` environment
+  variable.  It controls whether a warning message is emitted when a DSO
+  component fails to open at run time, which typically happens when a
+  shared library that the DSO requires is not available.
 
   .. admonition:: Rationale
      :class: tip
@@ -312,8 +327,8 @@ presented here so that they can easily be found via internet searches:
        match.
 
      For example, if the value of this MCA parameter is
-     ``sched,metrics/energy``, then DynaSched will warn if any component in
-     the sched framework or if the energy metrics component fails to load at run
+     ``dsched,dmetric/energy``, then DynaSched will warn if any component in
+     the dsched framework or if the energy dmetric component fails to load at run
      time.
 
   #. The value can also be a ``^`` character followed by a
@@ -323,6 +338,6 @@ presented here so that they can easily be found via internet searches:
      and do *not* match a token in the list.
 
      For example, if the value of this MCA parameter is
-     ``^sched,metrics/energy``, then DynaSched will only warn about the
-     failure to load DSOs that are neither in the sched
-     framework nor are the energy metrics component.
+     ``^dsched,dmetric/energy``, then DynaSched will only warn about the
+     failure to load DSOs that are neither in the dsched
+     framework nor are the energy dmetric component.
