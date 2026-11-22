@@ -205,8 +205,12 @@ static void _query(int sd, short args, void *cbdata)
                         rc = PMIx_Info_list_add(nodeinfolist, PMIX_HOSTNAME_ALIASES, str, PMIX_STRING);
                         free(str);
                     }
-                    /* add topology index */
-                    rc = PMIx_Info_list_add(nodeinfolist, PMIX_TOPOLOGY_INDEX, &node->topology->index, PMIX_INT);
+                    /* add topology index - a node whose topology we have not
+                     * been given has none to report */
+                    if (NULL != node->topology) {
+                        rc = PMIx_Info_list_add(nodeinfolist, PMIX_TOPOLOGY_INDEX,
+                                                &node->topology->index, PMIX_INT);
+                    }
                     /* convert to array */
                     rc = PMIx_Info_list_convert(nodeinfolist, &dry);
                     PMIx_Info_list_release(nodeinfolist);
@@ -230,11 +234,22 @@ static void _query(int sd, short args, void *cbdata)
                 /* convert list to array */
                 rc = PMIx_Info_list_convert(nodelist, &dry);
                 PMIx_Info_list_release(nodelist);
-                /* add to results */
-                rc = PMIx_Info_list_add(nodelist, PMIX_QUERY_ALLOCATION, &dry, PMIX_DATA_ARRAY);
+                if (PMIX_ERR_EMPTY == rc) {
+                    /* no nodes - there is no allocation to report */
+                    continue;
+                }
+                if (PMIX_SUCCESS != rc) {
+                    PMIX_ERROR_LOG(rc);
+                    ret = rc;
+                    goto done;
+                }
+                /* add to the results we return - the node list itself
+                 * has just been released */
+                rc = PMIx_Info_list_add(results, PMIX_QUERY_ALLOCATION, &dry, PMIX_DATA_ARRAY);
                 PMIX_DATA_ARRAY_DESTRUCT(&dry);
                 if (PMIX_SUCCESS != rc) {
                     PMIX_ERROR_LOG(rc);
+                    ret = rc;
                     goto done;
                 }
 
