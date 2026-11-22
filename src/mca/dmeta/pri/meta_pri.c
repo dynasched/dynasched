@@ -76,7 +76,8 @@ static void sched_cbfunc(int sd, short args, void *cbdata)
     dsched_alloc_t *alloc, *best=NULL;
     DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
-pmix_output(0, "SCHEDULES RETURNED");
+    pmix_output_verbose(5, dsched_dmeta_base_framework.framework_output,
+                        "dmeta:pri: schedules returned");
     if (cd->flag) {
         // we have the schedules from the dsched components - take
         // the one with the highest priority
