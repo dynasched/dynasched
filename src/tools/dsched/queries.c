@@ -65,7 +65,7 @@ static void _query(int sd, short args, void *cbdata)
     dsched_node_t *node = NULL;
     int k, rc;
     size_t m, n, nkeys = 0;
-    uint32_t nodeid;
+    uint32_t nodeid, nslots;
     dsched_topology_t *topo;
     char *xmlbuffer = NULL;
     int len;
@@ -205,6 +205,20 @@ static void _query(int sd, short args, void *cbdata)
                         str = PMIx_Argv_join(node->aliases, ',');
                         rc = PMIx_Info_list_add(nodeinfolist, PMIX_HOSTNAME_ALIASES, str, PMIX_STRING);
                         free(str);
+                    }
+                    /* add the number of slots it has */
+                    nslots = (uint32_t) node->slots;
+                    rc = PMIx_Info_list_add(nodeinfolist, PMIX_NUM_SLOTS, &nslots, PMIX_UINT32);
+                    /* and the allocation it is in, if any - which is how a
+                     * requester that did not wait for its answer
+                     * (PMIX_ALLOC_NOT_WAITING) finds what it was granted */
+                    if (NULL != node->session) {
+                        rc = PMIx_Info_list_add(nodeinfolist, PMIX_ALLOC_ID,
+                                                node->session->alloc_refid, PMIX_STRING);
+                        if (NULL != node->session->user_refid) {
+                            rc = PMIx_Info_list_add(nodeinfolist, PMIX_ALLOC_REQ_ID,
+                                                    node->session->user_refid, PMIX_STRING);
+                        }
                     }
                     /* add topology index - a node whose topology we have not
                      * been given has none to report */

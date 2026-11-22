@@ -8,7 +8,10 @@
  */
 
 #include "dsched_config.h"
+#include <limits.h>
 #include <time.h>
+
+#include "src/mca/preg/preg.h"
 
 #include "src/event/event-internal.h"
 #include "src/mca/dmeta/base/base.h"
@@ -31,6 +34,19 @@ static void take_string(const pmix_info_t *info, char **dest, pmix_status_t *rce
     }
     free(*dest);
     *dest = strdup(info->value.data.string);
+}
+
+/* A number a directive must carry, as a uint32 */
+static void take_uint32(const pmix_info_t *info, uint32_t *dest, bool *given,
+                        pmix_status_t *rcerr)
+{
+    if (PMIX_SUCCESS != PMIx_Value_get_number(&info->value, dest, PMIX_UINT32)) {
+        if (PMIX_SUCCESS == *rcerr) {
+            *rcerr = PMIX_ERR_BAD_PARAM;
+        }
+        return;
+    }
+    *given = true;
 }
 
 static void request_init(int fd, short args, void *cbdata)
@@ -78,6 +94,12 @@ static void request_init(int fd, short args, void *cbdata)
                 // when reporting back the error
                 continue;
             }
+            if (INT_MAX < u64) {
+                if (PMIX_SUCCESS == rcerr) {
+                    rcerr = PMIX_ERR_BAD_PARAM;
+                }
+                continue;
+            }
             req->num_nodes = (int)u64;
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NODE_LIST)) {
@@ -96,6 +118,12 @@ static void request_init(int fd, short args, void *cbdata)
                 }
                 // continue processing as we may need some of the info
                 // when reporting back the error
+                continue;
+            }
+            if (INT_MAX < u64) {
+                if (PMIX_SUCCESS == rcerr) {
+                    rcerr = PMIX_ERR_BAD_PARAM;
+                }
                 continue;
             }
             req->num_cpus = (int)u64;
@@ -150,40 +178,79 @@ static void request_init(int fd, short args, void *cbdata)
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NOT_WAITING)) {
             notwaiting = true;
+
+        } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_USERID)) {
+            /* PMIx stamps the requester's user and group on every request
+             * it passes up, replacing any the requester supplied */
+            if (PMIX_SUCCESS == PMIx_Value_get_number(&req->data[n].value, &req->uid,
+                                                      PMIX_UINT32)) {
+                req->have_uid = true;
+            }
+
+        } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_GRPID)) {
+            (void) PMIx_Value_get_number(&req->data[n].value, &req->gid, PMIX_UINT32);
+
+#ifdef PMIX_ALLOC_UID
+        } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_UID)) {
+            take_uint32(&req->data[n], &req->alloc_uid, &req->have_alloc_uid, &rcerr);
+
+        } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_GID)) {
+            take_uint32(&req->data[n], &req->alloc_gid, &req->have_alloc_gid, &rcerr);
+#endif
         }
     }
 
-    if (PMIX_SUCCESS == rcerr) {
-        // if they are waiting, we don't reply at this time - we reply
-        // when the allocation is actually made
-        if (notwaiting) {
-            // need to reply to requestor so they don't hang. That is
-            // the one reply the request gets: PMIx releases its
-            // tracker, and the directives with it, once it is made, so
-            // neither may be touched when scheduling completes
-            if (NULL != req->cbfunc) {
-                req->cbfunc(rcerr, NULL, 0, req->cbdata, NULL, NULL);
-            }
-            req->cbfunc = NULL;
-            req->cbdata = NULL;
-            req->data = NULL;
-            req->ndata = 0;
-        }
+    /* the hosts the request names, as names: a list, or a PMIx regex */
+    if (PMIX_SUCCESS == rcerr && NULL != req->nlist &&
+        PMIX_SUCCESS != pmix_preg.parse_nodes(req->nlist, &req->nodes_wanted)) {
+        rcerr = PMIX_ERR_BAD_PARAM;
+    }
+    if (PMIX_SUCCESS == rcerr && NULL != req->exclude &&
+        PMIX_SUCCESS != pmix_preg.parse_nodes(req->exclude, &req->nodes_excluded)) {
+        rcerr = PMIX_ERR_BAD_PARAM;
+    }
+    if (PMIX_SUCCESS == rcerr && (0 > req->num_nodes || 0 > req->num_cpus)) {
+        rcerr = PMIX_ERR_BAD_PARAM;
+    }
 
-        // add request to the queue
-        req->index = pmix_pointer_array_add(&dsched_globals.requests, req);
-
-        // initiate the scheduling process
-        DSCHED_THREADSHIFT(req, dsched_globals.evbase, dsched_meta_base_schedule);
-    } else {
+    if (PMIX_SUCCESS != rcerr) {
         // inform them of the error, regardless of waiting or not
-        if (NULL != req->cbfunc) {
-            req->cbfunc(rcerr, NULL, 0, req->cbdata, NULL, NULL);
-        }
+        dsched_reply(req, rcerr, NULL);
         // cannot continue processing the request
         PMIX_RELEASE(req);
+        return;
     }
-    return;
+
+    switch (req->directive) {
+    case PMIX_ALLOC_NEW:
+        /* queue it - the queue holds the reference we were created
+         * with - and if they are waiting, answer when it is decided */
+        pmix_list_append(&dsched_globals.pending, &req->super);
+        req->pending = true;
+        if (notwaiting) {
+            // need to reply to requestor so they don't hang. That is
+            // the one reply the request gets
+            dsched_reply(req, PMIX_SUCCESS, NULL);
+        }
+        dsched_schedule_requests();
+        return;
+
+    case PMIX_ALLOC_RELEASE:
+        rc = dsched_release_allocation(req);
+        dsched_reply(req, rc, NULL);
+        PMIX_RELEASE(req);
+        if (PMIX_SUCCESS == rc) {
+            // the freed nodes may meet the request at the head of the queue
+            dsched_schedule_requests();
+        }
+        return;
+
+    default:
+        // extending or reacquiring an allocation is not supported yet
+        dsched_reply(req, PMIX_ERR_NOT_SUPPORTED, NULL);
+        PMIX_RELEASE(req);
+        return;
+    }
 }
 
 

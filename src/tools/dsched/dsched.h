@@ -41,6 +41,13 @@ BEGIN_C_DECLS
 extern dsched_globals_t dsched_globals;
 
 extern int dsched_server_init(pmix_cli_result_t *results);
+extern pmix_status_t dsched_nodes_init(pmix_cli_result_t *results);
+
+/* scheduling - all on dsched_globals.evbase */
+extern void dsched_schedule_requests(void);
+extern pmix_status_t dsched_release_allocation(dsched_req_t *req);
+extern void dsched_drop_requests(const pmix_proc_t *requestor);
+extern void dsched_reply(dsched_req_t *req, pmix_status_t status, void *ilist);
 extern void dsched_server_finalize(void);
 
 extern pmix_status_t dsched_query_fn(pmix_proc_t *proct,

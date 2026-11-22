@@ -77,6 +77,13 @@ option to the help request as "--help <option>".
 |                        | "system" / "system-first" (see "--help        |
 |                        | controller")                                  |
 +------------------------+-----------------------------------------------+
+| "--hostfile <file>"    | Allocate the hosts the file names - or, with  |
+|                        | a system controller, only those of its nodes  |
++------------------------+-----------------------------------------------+
+| "--host <list>"        | Allocate the hosts in a comma-delimited list  |
+|                        | of host[:slots] - or, with a system           |
+|                        | controller, only those of its nodes           |
++------------------------+-----------------------------------------------+
 
 
 Report bugs to %s
@@ -208,6 +215,101 @@ Examples:
    dsched --controller ns:prte-node1-2095
 
    dsched --controller pid:file:prte_pid.txt
+#
+[hostfile]
+
+Name the hosts the scheduler allocates in a file, one host to a line:
+
+   node01 slots=8
+   node02 slots=8
+   # a comment
+   node03
+
+A host given no "slots=" count has one slot, and a host named more than
+once has the slots of every line that names it. A "max_slots=" entry is
+accepted and ignored: the scheduler allocates whole nodes.
+
+When the scheduler is attached to a system controller, the nodes it
+allocates are the controller's. A hostfile then does not add to them:
+it limits them to the ones it names, and a "slots=" count it gives is
+the most of that node's slots the scheduler allocates. "--hostfile" can
+be given more than once, and with "--host".
+#
+[host]
+
+Name the hosts the scheduler allocates as a comma-delimited list, each
+host optionally followed by its number of slots:
+
+   dsched --host node01:8,node02:8,node03
+
+A host given no count has one slot, and a host named more than once has
+the slots of every time it is named.
+
+When the scheduler is attached to a system controller, the nodes it
+allocates are the controller's. A host list then does not add to them:
+it limits them to the ones it names, and a count it gives is the most of
+that node's slots the scheduler allocates. "--host" can be given more
+than once, and with "--hostfile".
+
+The dsched_default_hosts MCA parameter takes a list in the same form,
+and is used only when there is no system controller and neither
+"--host" nor "--hostfile" is given.
+#
+[bad-host-list]
+
+A list of hosts cannot be used:
+
+   From:   %s
+   List:   %s
+   Reason: %s
+
+A list names hosts separated by commas, each optionally followed by a
+colon and its number of slots - for example "node01:8,node02". See
+"dsched --help host".
+#
+[bad-hostfile]
+
+A hostfile cannot be used:
+
+   File:   %s
+   Line:   %d
+   Reason: %s
+
+Each line names one host, optionally followed by "slots=<count>". See
+"dsched --help hostfile".
+#
+[controller-nodes]
+
+The scheduler could not learn the nodes of the system controller it
+attached to:
+
+   Controller: %s
+   Reason:     %s
+
+The scheduler allocates the nodes the system controller holds, so it
+cannot run without knowing them.
+#
+[hosts-not-in-dvm]
+
+Some of the hosts given to the scheduler are not nodes of the system
+controller it attached to, and will not be allocated:
+
+   Controller: %s
+   Hosts:      %s
+
+With a system controller, "--host" and "--hostfile" can only limit the
+scheduler to some of the controller's nodes.
+#
+[no-nodes]
+
+The scheduler has no nodes to allocate, and will refuse every
+allocation request.
+
+   Nodes taken from: %s
+
+Name the nodes with "--host" or "--hostfile", or in the
+dsched_default_hosts MCA parameter, or start the scheduler where it can
+attach to a system controller.
 #
 [bad-controller]
 

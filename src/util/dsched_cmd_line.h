@@ -69,6 +69,8 @@ BEGIN_C_DECLS
 
 // Daemon-specific CLI options
 #define DSCHED_CLI_CONTROLLER_URI         "controller"                // required
+#define DSCHED_CLI_HOST                   "host"                      // required
+#define DSCHED_CLI_HOSTFILE               "hostfile"                  // required
 
 // Tool options
 #define DSCHED_CLI_URI                    "uri"                       // required

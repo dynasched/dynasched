@@ -17,7 +17,11 @@ dsched_globals_t dsched_globals = {
     .nodes = PMIX_POINTER_ARRAY_STATIC_INIT,
     .sessions = PMIX_POINTER_ARRAY_STATIC_INIT,
     .topologies = PMIX_POINTER_ARRAY_STATIC_INIT,
-    .requests = PMIX_POINTER_ARRAY_STATIC_INIT,
+    .pending = PMIX_LIST_STATIC_INIT(dsched_globals.pending),
+    .round_active = false,
+    .round_again = false,
+    .next_session_id = 1,
+    .next_alloc_id = 1,
     .avail.nnodes = 0,
     .avail.nslots = 0,
     .param_files = NULL,
@@ -40,7 +44,8 @@ dsched_globals_t dsched_globals = {
     .progress_thread_cpus = NULL,
     .bind_progress_thread_reqd = false,
     .keep_fqdn_hostnames = false,
-    .strip_prefixes = NULL
+    .strip_prefixes = NULL,
+    .default_hosts = NULL
 };
 
 #if DSCHED_PICKY_COMPILERS
@@ -193,6 +198,7 @@ static void dsched_node_construct(dsched_node_t *node)
     node->slots_inuse = 0;
     node->slots_max = 0;
     node->topology = NULL;
+    node->session = NULL;
 
     node->flags = 0;
     PMIX_CONSTRUCT(&node->attributes, pmix_list_t);
@@ -220,6 +226,39 @@ static void dsched_node_destruct(dsched_node_t *node)
 
 PMIX_CLASS_INSTANCE(dsched_node_t, pmix_list_item_t,
                     dsched_node_construct, dsched_node_destruct);
+
+static void sesscon(dsched_session_t *p)
+{
+    p->index = -1;
+    p->session_id = 0;
+    p->user_refid = NULL;
+    p->alloc_refid = NULL;
+    PMIx_Load_procid(&p->requestor, NULL, PMIX_RANK_INVALID);
+    p->uid = 0;
+    p->gid = 0;
+    PMIX_CONSTRUCT(&p->nodes, pmix_pointer_array_t);
+    pmix_pointer_array_init(&p->nodes, DSCHED_GLOBAL_ARRAY_BLOCK_SIZE,
+                            DSCHED_GLOBAL_ARRAY_MAX_SIZE, DSCHED_GLOBAL_ARRAY_BLOCK_SIZE);
+}
+static void sessdes(dsched_session_t *p)
+{
+    dsched_node_t *node;
+    int n;
+
+    free(p->user_refid);
+    free(p->alloc_refid);
+    for (n = 0; n < p->nodes.size; n++) {
+        node = (dsched_node_t *) pmix_pointer_array_get_item(&p->nodes, n);
+        if (NULL != node) {
+            if (p == node->session) {
+                node->session = NULL;
+            }
+            PMIX_RELEASE(node);
+        }
+    }
+    PMIX_DESTRUCT(&p->nodes);
+}
+PMIX_CLASS_INSTANCE(dsched_session_t, pmix_object_t, sesscon, sessdes);
 
 
 static void scon(dsched_shift_caddy_t *p)
@@ -282,7 +321,7 @@ static void req_con(dsched_req_t *p)
 {
     PMIx_Load_procid(&p->requestor, NULL, PMIX_RANK_INVALID);
     p->directive = 0;
-    p->index = -1;
+    p->pending = false;
     p->copy = false;  // data is not a local copy
     p->data = NULL;
     p->ndata = 0;
@@ -311,6 +350,15 @@ static void req_con(dsched_req_t *p)
     p->sessionID = UINT32_MAX;
     p->received = 0;
     p->allocation = NULL;
+    p->nodes_wanted = NULL;
+    p->nodes_excluded = NULL;
+    p->uid = 0;
+    p->gid = 0;
+    p->have_uid = false;
+    p->alloc_uid = 0;
+    p->alloc_gid = 0;
+    p->have_alloc_uid = false;
+    p->have_alloc_gid = false;
 }
 static void req_des(dsched_req_t *p)
 {
@@ -353,6 +401,8 @@ static void req_des(dsched_req_t *p)
     if (NULL != p->begintime) {
         free(p->begintime);
     }
+    PMIx_Argv_free(p->nodes_wanted);
+    PMIx_Argv_free(p->nodes_excluded);
     /* a request that was refused, or not yet scheduled, holds none */
     if (NULL != p->allocation) {
         PMIX_RELEASE(p->allocation);
@@ -380,6 +430,8 @@ static void alloc_con(dsched_alloc_t *p)
 {
     p->scheduler = NULL;
     p->pri = 0;
+    p->req = NULL;
+    p->status = PMIX_SUCCESS;
     PMIX_CONSTRUCT(&p->allocation, pmix_pointer_array_t);
     pmix_pointer_array_init(&p->allocation,
                             DSCHED_GLOBAL_ARRAY_BLOCK_SIZE,
@@ -393,6 +445,9 @@ static void alloc_des(dsched_alloc_t *p)
 
     if (NULL != p->scheduler) {
         free(p->scheduler);
+    }
+    if (NULL != p->req) {
+        PMIX_RELEASE(p->req);
     }
     for (n=0; n < p->allocation.size; n++) {
         ptr = pmix_pointer_array_get_item(&p->allocation, n);
@@ -408,18 +463,29 @@ PMIX_CLASS_INSTANCE(dsched_alloc_t,
 
 static void dmetacon(dsched_meta_t *p)
 {
+    p->cbfunc = NULL;
     p->nactive = 0;
     p->nresponded = 0;
-    p->req = NULL;
-    p->activated = NULL;
+    p->pool = NULL;
+    p->npool = 0;
+    p->pending = NULL;
+    p->npending = 0;
+    p->alloc = NULL;
 }
 static void dmetades(dsched_meta_t *p)
 {
-    if (NULL != p->req) {
-        PMIX_RELEASE(p->req);
+    int n;
+
+    for (n = 0; NULL != p->pool && n < p->npool; n++) {
+        PMIX_RELEASE(p->pool[n].node);
     }
-    if (NULL != p->activated) {
-        PMIX_RELEASE(p->activated);
+    free(p->pool);
+    for (n = 0; NULL != p->pending && n < p->npending; n++) {
+        PMIX_RELEASE(p->pending[n]);
+    }
+    free(p->pending);
+    if (NULL != p->alloc) {
+        PMIX_RELEASE(p->alloc);
     }
 }
 PMIX_CLASS_INSTANCE(dsched_meta_t,

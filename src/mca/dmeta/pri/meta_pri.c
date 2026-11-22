@@ -69,6 +69,9 @@ static void finalize(void)
     return;
 }
 
+/* The schedulers' proposals are in. Runs on dsched_globals.evbase. If
+ * this component chooses for the round, the proposal of the
+ * highest-priority scheduler - the lowest order - is the one applied. */
 static void sched_cbfunc(int sd, short args, void *cbdata)
 {
     dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)cbdata;
@@ -76,11 +79,11 @@ static void sched_cbfunc(int sd, short args, void *cbdata)
     dsched_alloc_t *alloc, *best=NULL;
     DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
+    PMIX_ACQUIRE_OBJECT(cd);
+
     pmix_output_verbose(5, dsched_dmeta_base_framework.framework_output,
                         "dmeta:pri: schedules returned");
     if (cd->flag) {
-        // we have the schedules from the dsched components - take
-        // the one with the highest priority
         for (n=0; n < cd->allocations.size; n++) {
             alloc = (dsched_alloc_t*)pmix_pointer_array_get_item(&cd->allocations, n);
             if (NULL == alloc) {
@@ -91,11 +94,10 @@ static void sched_cbfunc(int sd, short args, void *cbdata)
             }
         }
         if (NULL != best) {
-            /* the request keeps the allocation it was given: the
-             * caddy releases every allocation it holds, this one too */
+            /* the round keeps the proposal it was given: the caddy
+             * releases every proposal it holds, this one too */
             PMIX_RETAIN(best);
-            cd->mt->req->allocation = best;
-            cd->mt->req->status = PMIX_SUCCESS;
+            cd->mt->alloc = best;
         }
     }
     // pass back to the base

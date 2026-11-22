@@ -64,7 +64,9 @@ DSCHED_EXPORT extern dsched_dmeta_module_t dsched_dmeta;
 
 DSCHED_EXPORT extern dsched_meta_globals_t dsched_meta_globals;
 
-DSCHED_EXPORT void dsched_meta_base_schedule(int sd, short args, void *cbdata);
+/* Run one scheduling round on dsched_globals.evbase: hand mt to every
+ * active meta component, and call mt->cbfunc once all have answered */
+DSCHED_EXPORT void dsched_meta_base_schedule(dsched_meta_t *mt);
 
 DSCHED_EXPORT void dsched_meta_base_cbfunc(int sd, short args, void *cbdata);
 
