@@ -135,21 +135,27 @@ static void request_init(int fd, short args, void *cbdata)
     }
 
     if (PMIX_SUCCESS == rcerr) {
+        // if they are waiting, we don't reply at this time - we reply
+        // when the allocation is actually made
+        if (notwaiting) {
+            // need to reply to requestor so they don't hang. That is
+            // the one reply the request gets: PMIx releases its
+            // tracker, and the directives with it, once it is made, so
+            // neither may be touched when scheduling completes
+            if (NULL != req->cbfunc) {
+                req->cbfunc(rcerr, NULL, 0, req->cbdata, NULL, NULL);
+            }
+            req->cbfunc = NULL;
+            req->cbdata = NULL;
+            req->data = NULL;
+            req->ndata = 0;
+        }
+
         // add request to the queue
         req->index = pmix_pointer_array_add(&dsched_globals.requests, req);
 
         // initiate the scheduling process
         DSCHED_THREADSHIFT(req, dsched_globals.evbase, dsched_meta_base_schedule);
-
-        // if they are waiting, we don't reply at this time - we reply
-        // when the allocation is actually made
-
-        if (notwaiting) {
-            // need to reply to requestor so they don't hang
-            if (NULL != req->cbfunc) {
-                req->cbfunc(rcerr, NULL, 0, req->cbdata, NULL, NULL);
-            }
-        }
     } else {
         // inform them of the error, regardless of waiting or not
         if (NULL != req->cbfunc) {
