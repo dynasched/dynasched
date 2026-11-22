@@ -353,7 +353,10 @@ static void req_des(dsched_req_t *p)
     if (NULL != p->begintime) {
         free(p->begintime);
     }
-    PMIX_RELEASE(p->allocation);
+    /* a request that was refused, or not yet scheduled, holds none */
+    if (NULL != p->allocation) {
+        PMIX_RELEASE(p->allocation);
+    }
 }
 PMIX_CLASS_INSTANCE(dsched_req_t,
                     pmix_list_item_t,

@@ -90,6 +90,9 @@ pmix_output(0, "SCHEDULES RETURNED");
             }
         }
         if (NULL != best) {
+            /* the request keeps the allocation it was given: the
+             * caddy releases every allocation it holds, this one too */
+            PMIX_RETAIN(best);
             cd->mt->req->allocation = best;
             cd->mt->req->status = PMIX_SUCCESS;
         }
