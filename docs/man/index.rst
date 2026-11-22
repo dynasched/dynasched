@@ -10,7 +10,7 @@ pages:
 
 .. code:: sh
 
-   shell$ man dshed_info
+   shell$ man dsched-info
 
 DynaSched man pages, by section:
 
