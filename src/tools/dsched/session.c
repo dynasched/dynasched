@@ -14,6 +14,25 @@
 #include "src/mca/dmeta/base/base.h"
 #include "src/tools/dsched/dsched.h"
 
+/* A directive that names a string is copied only if it carries one: any
+ * other type, or a string with no value, is refused as an error in the
+ * request, recording the first error in *rcerr. A key given twice keeps
+ * its last value. */
+static void take_string(const pmix_info_t *info, char **dest, pmix_status_t *rcerr)
+{
+    if (PMIX_STRING != info->value.type || NULL == info->value.data.string) {
+        pmix_output_verbose(2, dsched_globals.pmix_output,
+                            "%s scheduler:dsched: directive %s does not carry a string",
+                            PMIX_NAME_PRINT(&dsched_globals.myid), info->key);
+        if (PMIX_SUCCESS == *rcerr) {
+            *rcerr = PMIX_ERR_BAD_PARAM;
+        }
+        return;
+    }
+    free(*dest);
+    *dest = strdup(info->value.data.string);
+}
+
 static void request_init(int fd, short args, void *cbdata)
 {
     dsched_req_t *req = (dsched_req_t*)cbdata;
@@ -30,10 +49,10 @@ static void request_init(int fd, short args, void *cbdata)
     // process the incoming directives
     for (n=0; n < req->ndata; n++) {
         if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_REQ_ID)) {
-            req->user_refid = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->user_refid, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_ID)) {
-            req->alloc_refid = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->alloc_refid, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_SESSION_ID)) {
             rc = PMIx_Value_get_number(&req->data[n].value, &req->sessionID, PMIX_UINT32);
@@ -62,10 +81,10 @@ static void request_init(int fd, short args, void *cbdata)
             req->num_nodes = (int)u64;
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NODE_LIST)) {
-            req->nlist = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->nlist, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_EXCLUDE)) {
-            req->exclude = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->exclude, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NUM_CPUS)) {
             rc = PMIx_Value_get_number(&req->data[n].value, &u64, PMIX_UINT64);
@@ -82,10 +101,10 @@ static void request_init(int fd, short args, void *cbdata)
             req->num_cpus = (int)u64;
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NUM_CPU_LIST)) {
-            req->ncpulist = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->ncpulist, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_CPU_LIST)) {
-            req->cpulist = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->cpulist, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_MEM_SIZE)) {
             rc = PMIx_Value_get_number(&req->data[n].value, &req->memsize, PMIX_FLOAT);
@@ -100,19 +119,19 @@ static void request_init(int fd, short args, void *cbdata)
             }
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_TIME)) {
-            req->time = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->time, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_QUEUE)) {
-            req->queue = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->queue, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_PREEMPTIBLE)) {
             req->preemptible = PMIx_Value_true(&req->data[n].value);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_LEND)) {
-            req->lend = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->lend, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_IMAGE)) {
-            req->image = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->image, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_WAIT_ALL_NODES)) {
             req->waitall = PMIx_Value_true(&req->data[n].value);
@@ -124,10 +143,10 @@ static void request_init(int fd, short args, void *cbdata)
             req->noshell = PMIx_Value_true(&req->data[n].value);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_DEPENDENCY)) {
-            req->dependency = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->dependency, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_BEGIN)) {
-            req->begintime = strdup(req->data[n].value.data.string);
+            take_string(&req->data[n], &req->begintime, &rcerr);
 
         } else if (PMIX_CHECK_KEY(&req->data[n], PMIX_ALLOC_NOT_WAITING)) {
             notwaiting = true;
