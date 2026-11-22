@@ -96,70 +96,56 @@ DSCHED_MCA_BASE_FRAMEWORK_DECLARE(dmeta, "DynaSched meta plugins", NULL, dsched_
                                   dsched_dmeta_base_close, dsched_mca_dmeta_base_static_components,
                                   PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
+/* A meta component has answered for the round. Runs on
+ * dsched_globals.evbase. */
 void dsched_meta_base_cbfunc(int sd, short args, void *cbdata)
 {
     dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)cbdata;
     dsched_meta_t *mt = cd->mt;
-    dsched_req_t *req = mt->req;
     DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
-    mt->nresponded++;
-
-    if (mt->nresponded == mt->nactive) {
-        // all the metaschedulers have completed
-        if (NULL != req) {
-            // reply to requestor
-            if (NULL != req->cbfunc) {
-                req->cbfunc(req->status, NULL, 0, req->cbdata, NULL, NULL);
-            }
-            pmix_pointer_array_set_item(&dsched_globals.requests, req->index, NULL);
-            PMIX_RELEASE(req);
-        }
-        PMIX_RELEASE(mt);
-    }
     PMIX_RELEASE(cd);
+    mt->nresponded++;
+    if (mt->nresponded == mt->nactive && NULL != mt->cbfunc) {
+        // all the meta components have completed
+        mt->cbfunc(mt);
+    }
 }
 
-void dsched_meta_base_schedule(int sd, short args, void *cbdata)
+void dsched_meta_base_schedule(dsched_meta_t *mt)
 {
-    dsched_req_t *req = (dsched_req_t*)cbdata;
     pmix_status_t rc;
-    dsched_meta_t *mt;
     dsched_meta_base_active_module_t *mod;
     bool assign = true;
-    dsched_shift_caddy_t *cd;
-    DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
-    // NOTE: a NULL req indicates that this was triggered
-    // by completion of an executing job (either the job
-    // completed, or the session timed out). Schedulers
-    // shall indicate which pending req is being allocated.
-    // A non-NULL req indicates that a new request has
-    // arrived and needs to be added to the scheduler.
-    mt = PMIX_NEW(dsched_meta_t);
-    if (NULL != req) {
-        PMIX_RETAIN(req);
-    }
-    mt->req = req;
-    mt->nactive = pmix_list_get_size(&dsched_meta_globals.actives);
-
+    mt->nactive = 0;
+    mt->nresponded = 0;
     PMIX_LIST_FOREACH (mod, &dsched_meta_globals.actives, dsched_meta_base_active_module_t) {
         if (NULL != mod->module->schedule) {
-            rc = mod->module->schedule(mt, assign);
-            if (PMIX_SUCCESS != rc &&
-                PMIX_OPERATION_IN_PROGRESS != rc) {
-                mt->nresponded++;
-            } else {
-                assign = false;
-            }
+            mt->nactive++;
         }
     }
 
-    if (mt->nactive == mt->nresponded) {
-        req->status = PMIX_ERR_NOT_AVAILABLE;
-        cd = PMIX_NEW(dsched_shift_caddy_t);
-        cd->mt = mt;
-        DSCHED_THREADSHIFT(cd, dsched_globals.evbase, dsched_meta_base_cbfunc);
+    /* Only one meta component chooses the proposal that is applied: the
+     * first that takes the round on. The others see it too, so that
+     * they can weigh it, but what they choose is not applied. Every
+     * answer comes back through dsched_meta_base_cbfunc, posted to this
+     * same event base, so none can arrive before this loop is done. */
+    PMIX_LIST_FOREACH (mod, &dsched_meta_globals.actives, dsched_meta_base_active_module_t) {
+        if (NULL == mod->module->schedule) {
+            continue;
+        }
+        rc = mod->module->schedule(mt, assign);
+        if (PMIX_SUCCESS != rc && PMIX_OPERATION_IN_PROGRESS != rc) {
+            mt->nresponded++;
+        } else {
+            assign = false;
+        }
+    }
+
+    if (mt->nactive == mt->nresponded && NULL != mt->cbfunc) {
+        // nothing took the round on - it ends with no proposal
+        mt->cbfunc(mt);
     }
 }
 

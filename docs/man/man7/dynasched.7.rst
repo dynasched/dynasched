@@ -27,9 +27,10 @@ touching the rest.
 
 .. important::
 
-   DynaSched is under development, and this release does not yet
-   schedule real resources. See `CURRENT STATUS`_ before relying on
-   any of the behavior described here.
+   DynaSched is under development. This release allocates whole nodes,
+   first in first out, and much else a scheduler does is not there yet.
+   See `CURRENT STATUS`_ before relying on any of the behavior described
+   here.
 
 
 THE PROGRAMS
@@ -70,6 +71,18 @@ finds on the local host. A system controller started after ``dsched``
 connects to it instead. Either way, ``dsched`` and the controller each
 know the other once both are up.
 
+The nodes ``dsched`` allocates are the controller's, when it attached to
+one at startup: it asks the controller for the nodes in its DVM, with
+their slots. Without a controller they are the hosts its ``--hostfile``
+and ``--host`` options name, or failing those the
+``dsched_default_hosts`` MCA parameter. :ref:`dsched(1) <man1-dsched>`
+describes how the pool is built; it does not change after startup.
+
+A PRRTE DVM uses ``dsched`` for its allocations when it is started with
+``ras_pmix_system_scheduler`` set, and grants them to its jobs only in
+elastic mode (``prte_elastic_mode``). Its users then ask the DVM, which
+asks ``dsched`` on their behalf and applies the answer.
+
 PMIx advertises ``dsched`` on its host, so tools need not be told where
 it is. PMIx writes the rendezvous files it uses for a scheduler: one
 that a tool asking for *the* scheduler (``PMIX_CONNECT_TO_SCHEDULER``)
@@ -92,35 +105,67 @@ REQUESTS
 Allocation requests
 ^^^^^^^^^^^^^^^^^^^
 
-A tool asks for resources with ``PMIx_Allocation_request()``.
-``dsched`` reads these attributes of the request:
+A tool asks for resources with ``PMIx_Allocation_request()``, naming
+what it wants done by the directive it passes:
 
-* how much is wanted: ``PMIX_ALLOC_NUM_NODES``,
-  ``PMIX_ALLOC_NUM_CPUS``, ``PMIX_ALLOC_NUM_CPU_LIST``,
-  ``PMIX_ALLOC_MEM_SIZE``;
+``PMIX_ALLOC_NEW``
+   A new allocation. ``dsched`` queues the request and answers it when
+   it is granted or refused - see `HOW A REQUEST IS SCHEDULED`_. These
+   attributes decide what it is granted:
 
-* which resources may be used: ``PMIX_ALLOC_NODE_LIST``,
-  ``PMIX_ALLOC_EXCLUDE``, ``PMIX_ALLOC_CPU_LIST``,
-  ``PMIX_ALLOC_QUEUE``, ``PMIX_ALLOC_IMAGE``;
+   * ``PMIX_ALLOC_NUM_NODES``: the number of nodes;
+   * ``PMIX_ALLOC_NUM_CPUS``: the number of slots the nodes must have
+     between them;
+   * ``PMIX_ALLOC_NODE_LIST``: the hosts to choose from, as a
+     comma-delimited list or a PMIx regex - with neither of the two
+     above, the request is for all of them;
+   * ``PMIX_ALLOC_EXCLUDE``: hosts never to grant it.
 
-* when, and for how long: ``PMIX_ALLOC_TIME``, ``PMIX_ALLOC_BEGIN``,
-  ``PMIX_ALLOC_DEPENDENCY``, ``PMIX_ALLOC_LEND``;
+   With none of these, the request is for one node. A request naming a
+   host ``dsched`` does not hold is refused with ``PMIX_ERR_NOT_FOUND``,
+   and one that could not be met even with every node free is refused
+   with ``PMIX_ERR_OUT_OF_RESOURCE``.
 
-* how the allocation may be used: ``PMIX_ALLOC_PREEMPTIBLE``,
-  ``PMIX_ALLOC_SHARE``, ``PMIX_ALLOC_NOSHELL``,
-  ``PMIX_ALLOC_WAIT_ALL_NODES``;
+   A grant is answered ``PMIX_SUCCESS``, with:
 
-* which allocation and session the request concerns:
-  ``PMIX_ALLOC_REQ_ID``, ``PMIX_ALLOC_ID``, ``PMIX_SESSION_ID``.
+   * ``PMIX_ALLOC_ID``: the allocation's id, which ``dsched`` assigns,
+     and which a release names;
+   * ``PMIX_SESSION_ID``: the session's id;
+   * ``PMIX_ALLOC_NODE_LIST``: the hosts granted, comma-delimited;
+   * ``PMIX_ALLOC_NUM_NODES`` and ``PMIX_ALLOC_NUM_CPUS``: how many
+     hosts, and how many slots they have;
+   * ``PMIX_ALLOC_REQ_ID``, ``PMIX_ALLOC_UID`` and ``PMIX_ALLOC_GID``,
+     each as the request gave it, if it did.
 
-A string or numeric attribute whose value is not of the type PMIx
-defines for it is an error: the request is refused with
-``PMIX_ERR_BAD_PARAM``.
+   An allocation is held until it is released. It is not released when
+   its requester disconnects.
 
-A request is normally answered when it has been scheduled, so the
-requestor waits for its allocation. A request that carries
+``PMIX_ALLOC_RELEASE``
+   Release an allocation, named by ``PMIX_ALLOC_ID`` (or by
+   ``PMIX_SESSION_ID``) - or, if the request also names hosts in
+   ``PMIX_ALLOC_NODE_LIST``, only those of its nodes. Only root and the
+   user who was granted the allocation may release it; anyone else is
+   refused with ``PMIX_ERR_NO_PERMISSIONS``. An allocation ``dsched``
+   does not hold is ``PMIX_ERR_NOT_FOUND``, and a host that is not in it
+   ``PMIX_ERR_BAD_PARAM``, with nothing released. The freed nodes go to
+   the requests waiting for them.
+
+Any other directive is refused with ``PMIX_ERR_NOT_SUPPORTED``.
+
+``dsched`` also records ``PMIX_ALLOC_MEM_SIZE``, ``PMIX_ALLOC_TIME``,
+``PMIX_ALLOC_QUEUE`` and the request's other standard attributes, but
+does not yet act on them. A string or numeric
+attribute whose value is not of the type PMIx defines for it is an
+error: the request is refused with ``PMIX_ERR_BAD_PARAM``.
+
+A request is normally answered when it is decided, so the requester
+waits for its allocation. A request that carries
 ``PMIX_ALLOC_NOT_WAITING`` is answered ``PMIX_SUCCESS`` as soon as it
-has been accepted, and is scheduled afterwards.
+has been accepted, and is scheduled afterwards; the requester learns
+what it was granted from a ``PMIX_QUERY_ALLOCATION`` query, which shows
+each allocated node's ``PMIX_ALLOC_ID`` and ``PMIX_ALLOC_REQ_ID``. A
+requester that disconnects while it is still waiting for an answer
+takes its request with it.
 
 Queries
 ^^^^^^^
@@ -129,8 +174,11 @@ A tool asks about the scheduler's resources with
 ``PMIx_Query_info()``. ``dsched`` answers these keys:
 
 * ``PMIX_QUERY_ALLOCATION``: the nodes ``dsched`` holds, each as a
-  ``PMIX_NODE_INFO`` array of its name, any aliases and the index of
-  its topology, followed by each topology as hwloc XML.
+  ``PMIX_NODE_INFO`` array of its name, any aliases, its number of
+  slots (``PMIX_NUM_SLOTS``), the index of its topology if it has one,
+  and - for a node that is allocated - the allocation's
+  ``PMIX_ALLOC_ID`` and ``PMIX_ALLOC_REQ_ID``, followed by each
+  topology as hwloc XML.
 
 * ``PMIX_HWLOC_XML_V1`` and ``PMIX_HWLOC_XML_V2``: one node's topology,
   as hwloc XML in that version's format. The query must name the node
@@ -163,23 +211,28 @@ A session-control request (``PMIx_Session_control()``) is refused with
 HOW A REQUEST IS SCHEDULED
 --------------------------
 
-``dsched`` passes each allocation request through three layers of
-plugins, each an MCA framework:
+Allocation requests wait in a queue, oldest first, and are decided in
+*scheduling rounds*. A round runs whenever a request arrives or nodes
+are released, and passes through three layers of plugins, each an MCA
+framework:
 
-#. a **meta-scheduler** (framework ``dmeta``) takes the request and
-   hands it to the schedulers;
+#. a **meta-scheduler** (framework ``dmeta``) hands the round to the
+   schedulers;
 
-#. each **scheduler** (framework ``dsched``) proposes an allocation for
-   it, from the resources it knows to be free, using **metrics**
+#. each **scheduler** (framework ``dsched``) proposes something from a
+   snapshot of the pool and of the queue: to grant a waiting request
+   some of the free nodes, to refuse it, or nothing - using **metrics**
    (framework ``dmetric``) to judge between the allocations it could
    make;
 
 #. the meta-scheduler chooses one of the proposals, and ``dsched``
-   answers the request with it.
+   applies it: the request is answered, and leaves the queue.
 
-Several schedulers can be active at once, each proposing its own
-allocation for every request, so that their results can be compared
-while one of them makes the decision.
+A round that decided a request is followed by another, since the next
+one may now be decided too. Only one round runs at a time, so a
+proposal is always applied to the state it was made from. Several
+schedulers can be active at once, each proposing for every round, so
+that their results can be compared while one of them decides.
 
 DynaSched includes these frameworks and plugins:
 
@@ -187,8 +240,13 @@ DynaSched includes these frameworks and plugins:
    ``pri``: chooses the proposal of the highest-priority scheduler.
 
 ``dsched``: schedulers
-   ``fifo``: schedules requests in the order they arrive, giving each
-   the first nodes ``dsched`` holds, if enough are available.
+   ``fifo``: first in, first out. Only the oldest waiting request is
+   considered, and none behind it is until it is decided. It is granted
+   whole nodes, chosen in pool order - or, when it asks for both a
+   number of nodes and a number of slots, that number of the nodes with
+   the most slots, so that it is met whenever it can be. A request that
+   could not be met even with every node free is refused rather than
+   left to hold up the queue.
 
 ``dmetric``: metrics
    ``energy``: a metric based on energy use.
@@ -224,6 +282,11 @@ These are the parameters most often wanted:
 ``dsched_tmpdir``
    The root of ``dsched``'s session directory tree, in which PMIx also
    makes its socket. ``dsched --tmpdir`` sets it.
+
+``dsched_default_hosts``
+   The hosts to allocate, in ``--host`` form (``host[:slots],...``),
+   when there is neither a system controller nor a ``--hostfile`` or
+   ``--host``.
 
 ``dsched_verbose``
    The verbosity of ``dsched``'s own output. ``dsched -v`` sets 5 and
@@ -266,21 +329,20 @@ they are taken only from the command line or the environment.
 CURRENT STATUS
 --------------
 
-DynaSched is under development. This release has the structure
-described above - the daemon, its PMIx server, the request handling and
-the plugin layers - but not yet the parts that make it a working
-scheduler:
+DynaSched is under development. ``dsched`` grants and releases whole
+nodes from its pool, first in first out, but much of what a scheduler
+does is not there yet:
 
-* ``dsched`` holds five placeholder nodes, ``foo00`` through ``foo04``,
-  rather than the resources of the system it runs on, and has no
-  topology for any of them. A ``PMIX_QUERY_ALLOCATION`` query reports
-  those nodes.
+* Only ``PMIX_ALLOC_NEW`` and ``PMIX_ALLOC_RELEASE`` are carried out.
+  Of a request's attributes, only the number of nodes and slots and the
+  hosts to use or exclude are acted on: there is no time limit, queue,
+  preemption, dependency or deferred start.
 
-* No allocation is made. An allocation request passes through the
-  meta-scheduler and the schedulers, but none proposes an allocation,
-  and the request is answered ``PMIX_ERR_NOT_SUPPORTED`` - or, if it
-  carried ``PMIX_ALLOC_NOT_WAITING``, ``PMIX_SUCCESS`` when it was
-  accepted, with nothing to follow.
+* The pool is fixed at startup. Nodes the system controller gains or
+  loses afterwards are not seen, and no node topology is held.
+
+* An allocation is held until it is released, even if its holder goes
+  away.
 
 * The ``energy`` metric and the ``stdfd`` logger do nothing yet.
 

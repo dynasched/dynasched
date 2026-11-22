@@ -80,15 +80,18 @@ typedef struct {
 } dsched_topology_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_topology_t);
 
-/* Object for tracking allocations */
+/* An allocation that has been granted, from the grant until the
+ * requester releases the last of its nodes */
 typedef struct {
     pmix_object_t super;
-    int index;
-    uint32_t session_id;
-    char *user_refid;  // PMIX_ALLOC_REQ_ID
-    char *alloc_refid; // PMIX_ALLOC_ID
-    struct timeval timeout;  // time limit on session
-    pmix_pointer_array_t *nodes;
+    int index;              // in dsched_globals.sessions
+    uint32_t session_id;    // PMIX_SESSION_ID
+    char *user_refid;       // PMIX_ALLOC_REQ_ID the requester gave
+    char *alloc_refid;      // PMIX_ALLOC_ID we assigned
+    pmix_proc_t requestor;
+    uint32_t uid;           // the requester's, as PMIx established it
+    uint32_t gid;
+    pmix_pointer_array_t nodes;  // dsched_node_t, each one retained
 } dsched_session_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_session_t);
 
@@ -128,6 +131,10 @@ typedef struct {
     int32_t slots_max;
     /* system topology for this node */
     dsched_topology_t *topology;
+    /* the allocation the node is in, or NULL if it is free. Read and
+     * written only on dsched_globals.evbase. Not a reference: the
+     * session holds one on the node, and clears this before it goes */
+    dsched_session_t *session;
     /* flags */
     dsched_node_flags_t flags;
     /* list of dsched_attribute_t */
@@ -135,15 +142,23 @@ typedef struct {
 } dsched_node_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_node_t);
 
+/* A scheduler's proposal for one scheduling round: grant a pending
+ * request these nodes (status PMIX_SUCCESS), or refuse it (any other
+ * status - the request cannot be met even with every node free). A
+ * scheduler that would neither grant nor refuse proposes nothing. */
+struct dsched_req_s;
 typedef struct {
     pmix_list_item_t super;
     // name of scheduler that computed it
     char *scheduler;
     // priority of scheduler component that computed it
     int pri;
-    /* array of resources that are assigned to this allocation */
+    // the request it is for - retained
+    struct dsched_req_s *req;
+    // grant or refuse
+    pmix_status_t status;
+    /* the nodes to grant (dsched_node_t), each one retained */
     pmix_pointer_array_t allocation;
-    //
 } dsched_alloc_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_alloc_t);
 
@@ -151,14 +166,15 @@ DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_alloc_t);
  * usual time format of months:days:hours:minutes:seconds, scanning
  * from right to left (i.e., a value of "2" equates to 2 seconds)
 */
-typedef struct {
+typedef struct dsched_req_s {
     /** Base object so this can be put on a list */
     pmix_list_item_t super;
     dsched_event_t ev;
     // allocation request info
     pmix_proc_t requestor;
     pmix_alloc_directive_t directive;
-    int32_t index;
+    // whether it is on dsched_globals.pending
+    bool pending;
     // whether the data is a local copy
     bool copy;
     // original info keys
@@ -188,6 +204,18 @@ typedef struct {
     bool share;
     bool noshell;
     char *dependency;
+    // the hosts named by nlist and exclude, as names
+    char **nodes_wanted;
+    char **nodes_excluded;
+    // who asked: the user and group PMIx established for the requester
+    uint32_t uid;
+    uint32_t gid;
+    bool have_uid;
+    // whom the allocation is for, if the request said (PMIX_ALLOC_UID/GID)
+    uint32_t alloc_uid;
+    uint32_t alloc_gid;
+    bool have_alloc_uid;
+    bool have_alloc_gid;
     // Direct the scheduler to defer allocation until the specified time. Time
     // may be of the form HH:MM:SS to schedule the session to start at a specific
     // time of day (seconds are optional). If that time is already past, the
@@ -216,19 +244,39 @@ typedef struct {
 } dsched_req_item_t;
 DSCHED_EXPORT PMIX_CLASS_DECLARATION(dsched_req_item_t);
 
-// callback object for meta components
+/* One node as a scheduling round sees it. The round's schedulers run
+ * on their own threads, so they read this copy and never the node's
+ * own state, which only dsched_globals.evbase reads and writes. */
 typedef struct {
+    dsched_node_t *node;    // retained; only its name and aliases are read
+    int32_t slots;
+    bool free;
+} dsched_node_snap_t;
+
+/* One scheduling round. Rounds run one at a time: the schedulers are
+ * handed a snapshot of the pool and of the pending requests, in the
+ * order they arrived, and propose; the meta component chooses one
+ * proposal; and the base applies it on dsched_globals.evbase. */
+struct dsched_meta_s;
+typedef void (*dsched_meta_cbfunc_t)(struct dsched_meta_s *mt);
+typedef struct dsched_meta_s {
     pmix_object_t super;
     dsched_event_t ev;
+    // called on dsched_globals.evbase once every meta component has
+    // answered; it owns the round from then on, and releases it
+    dsched_meta_cbfunc_t cbfunc;
     // number of active meta components
     int nactive;
     // number that have responded
     int nresponded;
-    // the allocation request triggering this operation
-    dsched_req_t *req;
-    // allocation request being activated - if NULL, this
-    // means that no request is ready to be fulfilled.
-    dsched_req_t *activated;
+    // the pool, as the round sees it
+    dsched_node_snap_t *pool;
+    int npool;
+    // the pending requests, oldest first, each one retained
+    dsched_req_t **pending;
+    int npending;
+    // the proposal chosen, retained - NULL if none
+    dsched_alloc_t *alloc;
 } dsched_meta_t;
 PMIX_CLASS_DECLARATION(dsched_meta_t);
 
@@ -304,7 +352,14 @@ typedef struct {
     pmix_pointer_array_t nodes;
     pmix_pointer_array_t sessions;
     pmix_pointer_array_t topologies;
-    pmix_pointer_array_t requests;
+    // allocation requests waiting to be granted, oldest first
+    pmix_list_t pending;
+    // a scheduling round is running, and another is wanted after it
+    bool round_active;
+    bool round_again;
+    // the next session and allocation numbers to assign
+    uint32_t next_session_id;
+    uint32_t next_alloc_id;
     struct {
         int nnodes;
         int nslots;
@@ -330,6 +385,8 @@ typedef struct {
     bool bind_progress_thread_reqd;
     bool keep_fqdn_hostnames;
     char *strip_prefixes;
+    // the hosts, in --host format, to allocate when nothing else names any
+    char *default_hosts;
 } dsched_globals_t;
 DSCHED_EXPORT extern dsched_globals_t dsched_globals;
 

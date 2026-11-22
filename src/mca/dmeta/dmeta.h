@@ -81,7 +81,12 @@ typedef int (*dsched_dmeta_base_module_init_fn_t)(void);
  */
 typedef void (*dsched_dmeta_base_module_finalize_fn_t)(void);
 
-// meta operation
+/* Run the schedulers for one scheduling round, mt, and - if assign is
+ * true - choose the proposal to apply, setting mt->alloc (retained). The
+ * component answers by posting a caddy whose mt field is mt to
+ * dsched_globals.evbase, at dsched_meta_base_cbfunc, and returns
+ * PMIX_OPERATION_IN_PROGRESS or PMIX_SUCCESS; any other return says it
+ * will not answer. Only one component is told to assign. */
 typedef pmix_status_t (*dsched_dmeta_base_module_schedule_fn_t)(dsched_meta_t *mt,
                                                                 bool assign);
 
@@ -111,7 +116,7 @@ typedef pmix_mca_base_component_t dsched_dmeta_base_component_t;
  * the same three by pasting its name, so the two cannot drift apart.
  * Bump it on any change to the module interface that a component built
  * against the previous one would not survive. */
-#define DSCHED_MCA_dmeta_MAJOR_VERSION   1
+#define DSCHED_MCA_dmeta_MAJOR_VERSION   2
 #define DSCHED_MCA_dmeta_MINOR_VERSION   0
 #define DSCHED_MCA_dmeta_RELEASE_VERSION 0
 

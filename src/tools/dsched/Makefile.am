@@ -46,7 +46,9 @@ dsched_SOURCES =  \
         backend.c \
         session.c \
         queries.c \
-        job_ctrl.c
+        job_ctrl.c \
+        nodes.c \
+        schedule.c
 
 dsched_LDADD = \
     $(dsched_libevent_LIBS) \

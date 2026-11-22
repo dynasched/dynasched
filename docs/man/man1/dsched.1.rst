@@ -33,6 +33,7 @@ At startup ``dsched``:
 #. connects to the system controller: the one named by
    ``--controller``, or else one PMIx finds on the local host, if any
    is running;
+#. builds the pool of nodes it allocates from (see `NODES`_);
 #. prints a ready message on standard error, unless ``--no-ready-msg``
    is given or it has daemonized:
 
@@ -121,9 +122,66 @@ OPTIONS
   * ``system-first``: the system-level server if there is one, else any
     server ``dsched`` may use.
 
+* ``--hostfile <file>``: Allocate the hosts the file names - or, when
+  ``dsched`` is attached to a system controller, only those of the
+  controller's nodes (see `NODES`_). Each line names one host,
+  optionally followed by ``slots=<count>``:
+
+  .. code-block::
+
+     node01 slots=8
+     node02 slots=8
+     # a comment
+     node03
+
+  A host given no count has one slot, and a host named more than once
+  has the slots of every line that names it. ``max_slots=`` is accepted
+  and ignored, since ``dsched`` allocates whole nodes. May be given more
+  than once.
+
+* ``--host <list>``: Allocate the hosts in a comma-delimited list, each
+  optionally followed by a colon and its number of slots - for example
+  ``node01:8,node02:8,node03`` - or, when ``dsched`` is attached to a
+  system controller, only those of the controller's nodes. Counts work
+  as for ``--hostfile``. May be given more than once, and together with
+  ``--hostfile``.
+
 * ``--allow-run-as-root``: Allow ``dsched`` to run as root. This is
   **strongly discouraged**: a mistake, such as a wrong ``TMPDIR``, can
   damage the system it runs on.
+
+
+NODES
+-----
+
+``dsched`` allocates from a pool of nodes it builds at startup, from
+the first of these that applies:
+
+#. **The system controller**, when ``dsched`` is attached to one: the
+   nodes in its DVM, with their slots, as it reports them. A
+   ``--hostfile`` or ``--host`` given as well does not add to them; it
+   limits the pool to the controller's nodes it names, and a slot count
+   it gives is the most of that node's slots ``dsched`` allocates. A
+   named host the controller does not have is reported and left out.
+   If ``dsched`` cannot learn the controller's nodes, it does not
+   start.
+
+#. **The hosts named by** ``--hostfile`` **and** ``--host``, when there
+   is no system controller.
+
+#. **The** ``dsched_default_hosts`` **MCA parameter**, a list in
+   ``--host`` form, when there is neither a system controller nor a
+   ``--hostfile`` or ``--host``. It exists so that a site can put a
+   default in a parameter file.
+
+With none of these, the pool is empty: ``dsched`` says so, and refuses
+every allocation request. The pool is not changed after startup.
+
+A hostfile or host list that cannot be read stops ``dsched`` from
+starting, with a message naming the line or entry and the reason.
+
+:ref:`dynasched(7) <man7-dynasched>` describes how ``dsched`` allocates
+from the pool.
 
 
 STOPPING DSCHED
@@ -162,8 +220,9 @@ EXIT STATUS
 Returns 0 when stopped by :ref:`dsterm(1) <man1-dsterm>`. Returns 1
 when stopped by a signal or by the closing of its ``--keepalive``
 pipe, and when it fails to start - including when the command line is
-not valid, when the controller named by ``--controller`` cannot be
-reached, and when it is run as root without ``--allow-run-as-root``.
+not valid, when a ``--hostfile`` or ``--host`` cannot be read, when the
+controller named by ``--controller`` cannot be reached or cannot report
+its nodes, and when it is run as root without ``--allow-run-as-root``.
 
 
 ENVIRONMENT
@@ -206,6 +265,19 @@ a file:
 .. code-block::
 
    dsched --controller uri:file:/path/to/controller.uri
+
+Start the scheduler with no system controller, allocating three hosts:
+
+.. code-block::
+
+   dsched --host node01:8,node02:8,node03:4
+
+Start the scheduler attached to a system controller, allocating only
+two of its nodes:
+
+.. code-block::
+
+   dsched --host node01,node02
 
 .. seealso::
    :ref:`dsterm(1) <man1-dsterm>`,

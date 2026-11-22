@@ -249,6 +249,8 @@ static struct option dschedoptions[] = {
     PMIX_OPTION_DEFINE(DSCHED_CLI_REPORT_URI, PMIX_ARG_REQD),
     PMIX_OPTION_DEFINE(DSCHED_CLI_KEEPALIVE, PMIX_ARG_REQD),
     PMIX_OPTION_DEFINE(DSCHED_CLI_CONTROLLER_URI, PMIX_ARG_REQD),
+    PMIX_OPTION_DEFINE(DSCHED_CLI_HOST, PMIX_ARG_REQD),
+    PMIX_OPTION_DEFINE(DSCHED_CLI_HOSTFILE, PMIX_ARG_REQD),
 
     // debug options
     PMIX_OPTION_DEFINE(DSCHED_CLI_DEBUG, PMIX_ARG_NONE),
@@ -459,8 +461,6 @@ int main(int argc, char *argv[])
     }
 
     /* initialize the requests cache */
-    PMIX_CONSTRUCT(&dsched_globals.requests, pmix_pointer_array_t);
-    pmix_pointer_array_init(&dsched_globals.requests, 1, INT_MAX, 1);
 
     // initialize the list of connected tools
     PMIX_CONSTRUCT(&dsched_globals.tools, pmix_list_t);
@@ -621,14 +621,6 @@ int main(int argc, char *argv[])
         PMIX_DESTRUCT_LOCK(&xfer.lock);
     }
 
-    // put some nodes in the system
-    dsched_node_t *node;
-    for (int n=0; n < 5; n++) {
-        node = PMIX_NEW(dsched_node_t);
-        pmix_asprintf(&node->name, "foo%02d", n);
-        node->slots = n + 3;
-        pmix_pointer_array_add(&dsched_globals.nodes, node);
-    }
 
     /* output a message indicating we are alive, our name, and our pid -
      * or, if we daemonized, tell the waiting parent we are ready so it

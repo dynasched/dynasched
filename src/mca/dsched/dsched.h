@@ -81,7 +81,18 @@ typedef int (*dsched_dsched_base_module_init_fn_t)(void);
  */
 typedef int (*dsched_dsched_base_module_finalize_fn_t)(void);
 
-/* compute a schedule */
+/* Propose something for one scheduling round. The round is scd->mt: a
+ * snapshot of the pool and of the pending requests, oldest first, which
+ * the scheduler reads and does not change - on its own thread, if it
+ * likes, since it is to touch no other DynaSched state. Its answer is a
+ * dsched_alloc_t that grants one pending request some of the pool's
+ * free nodes (status PMIX_SUCCESS) or refuses it (any other status), or
+ * no proposal at all. It answers by posting a caddy carrying
+ * scd->trk - retained - and the proposal in its alloc field to
+ * dsched_globals.evbase, at dsched_sched_base_cbfunc, and returns
+ * PMIX_OPERATION_IN_PROGRESS; any other return says it will not answer.
+ * order is its place among the active schedulers, the highest-priority
+ * first, and is what the proposal's pri is set to. */
 typedef pmix_status_t (*dsched_dsched_base_module_schedule_fn_t)(dsched_shift_caddy_t *scd,
                                                                  int order);
 
@@ -110,7 +121,7 @@ typedef pmix_mca_base_component_t dsched_dsched_base_component_t;
  * the same three by pasting its name, so the two cannot drift apart.
  * Bump it on any change to the module interface that a component built
  * against the previous one would not survive. */
-#define DSCHED_MCA_dsched_MAJOR_VERSION   1
+#define DSCHED_MCA_dsched_MAJOR_VERSION   2
 #define DSCHED_MCA_dsched_MINOR_VERSION   0
 #define DSCHED_MCA_dsched_RELEASE_VERSION 0
 

@@ -178,6 +178,9 @@ static void _lost_tool(int sd, short args, void *cbdata)
                         PMIX_NAME_PRINT(&dsched_globals.myid),
                         PMIX_NAME_PRINT(&cd->target));
 
+    /* its requests still waiting for an answer cannot be given one */
+    dsched_drop_requests(&cd->target);
+
     /* scan the list of attached tools to see if this one is there */
     PMIX_LIST_FOREACH(tl, &dsched_globals.tools, pmix_proclist_t)
     {
@@ -497,6 +500,26 @@ int dsched_server_init(pmix_cli_result_t *results)
      * that never came up, which it reports as an error */
     dsched_globals.server_initialized = true;
 
+    /* if we attached to a system controller, record which: it is the
+     * server we are connected to, and the nodes we allocate are the
+     * nodes it holds */
+    if (PMIx_tool_is_connected()) {
+        pmix_proc_t *servers = NULL;
+        size_t nservers = 0;
+
+        if (PMIX_SUCCESS == PMIx_tool_get_servers(&servers, &nservers) && 0 < nservers) {
+            PMIx_Load_procid(&dsched_globals.syscontroller, servers[0].nspace, servers[0].rank);
+            dsched_globals.controller_connected = true;
+            pmix_output_verbose(1, dsched_globals.output,
+                                "%s attached to system controller %s",
+                                PMIX_NAME_PRINT(&dsched_globals.myid),
+                                PMIX_NAME_PRINT(&dsched_globals.syscontroller));
+        }
+        if (NULL != servers) {
+            PMIx_Proc_free(servers, nservers);
+        }
+    }
+
     /* register our attributes */
     for (n = 0; 0 != strlen(dsched_attributes[n].function); n++) {
         rc = PMIx_Register_attributes(dsched_attributes[n].function, dsched_attributes[n].attrs);
@@ -512,6 +535,15 @@ int dsched_server_init(pmix_cli_result_t *results)
     PMIX_WAIT_THREAD(&lock);
     rc = lock.status;
     PMIX_DESTRUCT_LOCK(&lock);
+    if (PMIX_SUCCESS != rc) {
+        return rc;
+    }
+
+    /* build the pool of nodes we allocate from - before our server
+     * module is registered, since once it is, our own query for the
+     * controller's nodes would be answered by that module rather than
+     * sent to the controller (see nodes.c) */
+    rc = dsched_nodes_init(results);
     if (PMIX_SUCCESS != rc) {
         return rc;
     }

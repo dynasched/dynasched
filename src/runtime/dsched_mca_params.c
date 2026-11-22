@@ -162,6 +162,13 @@ int dsched_register_params(void)
         "node names returned by daemons",
         PMIX_MCA_BASE_VAR_TYPE_STRING, &dsched_globals.strip_prefixes);
 
+    (void) pmix_mca_base_var_register(
+        "dsched", "dsched", NULL, "default_hosts",
+        "Comma-delimited list of hosts to allocate, in --host format (host[:slots]), "
+        "used only when there is no system controller and neither --host nor "
+        "--hostfile is given",
+        PMIX_MCA_BASE_VAR_TYPE_STRING, &dsched_globals.default_hosts);
+
 
     return DSCHED_SUCCESS;
 }

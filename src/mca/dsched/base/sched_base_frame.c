@@ -95,25 +95,38 @@ DSCHED_MCA_BASE_FRAMEWORK_DECLARE(dsched, "DynaSched scheduler plugins", NULL, d
                                   dsched_dsched_base_close, dsched_mca_dsched_base_static_components,
                                   PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
+/* A scheduler has answered for the round, with a proposal in scd->alloc
+ * or none. Runs on dsched_globals.evbase. scd is the scheduler's own
+ * caddy, holding a reference on the tracker; cd, which the tracker
+ * points to, collects the proposals. */
 void dsched_sched_base_cbfunc(int sd, short args, void *cbdata)
 {
     dsched_shift_caddy_t *scd = (dsched_shift_caddy_t*)cbdata;
     dsched_op_tracker_t *trk = scd->trk;
-    dsched_alloc_t *alloc = scd->alloc;
     dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)trk->cbdata;
     DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
+    PMIX_ACQUIRE_OBJECT(scd);
+
     trk->nresponded++;
-    if (NULL != alloc) {
-        pmix_pointer_array_add(&cd->allocations, alloc);
+    if (NULL != scd->alloc) {
+        // the proposal passes to cd, which releases what it collects
+        pmix_pointer_array_add(&cd->allocations, scd->alloc);
+        scd->alloc = NULL;
     }
 
     if (trk->nresponded == trk->nactive) {
         // all the schedulers have completed
         DSCHED_THREADSHIFT(cd, dsched_globals.evbase, cd->evcbfunc);
     }
+    PMIX_RELEASE(scd);
 }
 
+/* Ask every active scheduler for a proposal for the round cd->mt.
+ * Runs on dsched_globals.evbase. Each scheduler proposes from the
+ * round's snapshot of the pool and the pending requests - on its own
+ * thread, if it likes, since it touches nothing else - and answers
+ * through dsched_sched_base_cbfunc. */
 void dsched_sched_base_schedule(int sd, short args, void *cbdata)
 {
     dsched_shift_caddy_t *cd = (dsched_shift_caddy_t*)cbdata;
@@ -123,26 +136,17 @@ void dsched_sched_base_schedule(int sd, short args, void *cbdata)
     int order;
     DSCHED_HIDE_UNUSED_PARAMS(sd, args);
 
-    // pass down to schedulers so they can each compute
-    // an allocation based on the request and available
-    // resources
+    PMIX_ACQUIRE_OBJECT(cd);
 
-
-    // if an allocation cannot be made at this time, then
-    // the scheduler will return an estimated time for it
-    // to become available, if possible
-
-    // NOTE: a NULL req indicates that this was triggered
-    // by completion of an executing job (either the job
-    // completed, or the session timed out). Schedulers
-    // shall indicate which pending req is being allocated.
-    // A non-NULL req indicates that a new request has
-    // arrived and needs to be added to the schedule.
-
+    // cd holds the tracker's only reference, and releases it with itself
     trk = PMIX_NEW(dsched_op_tracker_t);
     trk->cbdata = cd;
     cd->trk = trk;
-    trk->nactive = pmix_list_get_size(&dsched_sched_globals.actives);
+    PMIX_LIST_FOREACH (mod, &dsched_sched_globals.actives, dsched_sched_base_active_module_t) {
+        if (NULL != mod->module->schedule) {
+            trk->nactive++;
+        }
+    }
     order = 1;
 
     PMIX_LIST_FOREACH (mod, &dsched_sched_globals.actives, dsched_sched_base_active_module_t) {
@@ -157,9 +161,8 @@ void dsched_sched_base_schedule(int sd, short args, void *cbdata)
     }
 
     if (trk->nresponded == trk->nactive) {
-        cd->mt->req->status = PMIX_ERR_NOT_AVAILABLE;
+        // no scheduler is answering - the round has no proposals
         DSCHED_THREADSHIFT(cd, dsched_globals.evbase, cd->evcbfunc);
-        PMIX_RELEASE(trk);
     }
 }
 
