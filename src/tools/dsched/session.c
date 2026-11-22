@@ -213,11 +213,18 @@ pmix_status_t dsched_alloc_fn(const pmix_proc_t *client,
 static void session_control(int fd, short args, void *cbdata)
 {
     dsched_req_t *req = (dsched_req_t*)cbdata;
-    DSCHED_HIDE_UNUSED_PARAMS(fd, args, req);
+    DSCHED_HIDE_UNUSED_PARAMS(fd, args);
 
     pmix_output_verbose(2, dsched_globals.pmix_output,
                         "%s scheduler:dsched: session control",
                         PMIX_NAME_PRINT(&dsched_globals.myid));
+
+    // no session control directive is supported yet - say so, rather
+    // than leave the requestor waiting for a reply
+    if (NULL != req->cbfunc) {
+        req->cbfunc(PMIX_ERR_NOT_SUPPORTED, NULL, 0, req->cbdata, NULL, NULL);
+    }
+    PMIX_RELEASE(req);
 }
 
 pmix_status_t dsched_session_ctrl_fn(const pmix_proc_t *requestor,
